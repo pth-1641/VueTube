@@ -1,0 +1,22 @@
+{
+  "name": "vuetube",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.2.41",
+    "vue-router": "^4.1.6"
+  },
+  "devDependencies": {
+    "@vicons/carbon": "^0.12.0",
+    "@vitejs/plugin-vue": "^3.2.0",
+    "naive-ui": "^2.33.5",
+    "vfonts": "^0.0.3",
+    "vite": "^3.2.0"
+  }
+}
