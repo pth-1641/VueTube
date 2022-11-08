@@ -19,8 +19,10 @@ import {
 import { CheckmarkFilled } from '@vicons/carbon';
 import { convertTimer } from '../utils/convert-timer';
 import { formatViews } from '../utils/format-view-count';
+import { useRouter } from 'vue-router';
 
 const videos = ref(null);
+const router = useRouter();
 
 onMounted(() => {
   axios.get('/trending?region=VN').then(({ data }) => {
@@ -35,10 +37,16 @@ onMounted(() => {
       <n-grid :cols="5" :x-gap="25" :y-gap="25">
         <n-gi v-for="video in videos" :key="video.url">
           <n-card
-            :bordered="true"
+            :bordered="false"
             size="small"
             embedded
-            :style="{ height: '100%' }"
+            :style="{
+              height: '100%',
+              cursor: 'pointer',
+              borderRadius: '6px',
+              overflow: 'hidden',
+            }"
+            @click="router.push(video.url)"
           >
             <template #cover>
               <div style="position: relative">
@@ -70,7 +78,7 @@ onMounted(() => {
                 </n-ellipsis>
               </n-h6>
             </n-space>
-            <n-space align="center">
+            <n-space align="center" :size="6">
               <n-h6
                 prefix="bar"
                 :style="{

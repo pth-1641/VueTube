@@ -15,14 +15,7 @@ import {
   NList,
   NListItem,
 } from 'naive-ui';
-import {
-  ChevronRight,
-  Search,
-  UserAvatar,
-  Sun,
-  Moon,
-  Home,
-} from '@vicons/carbon';
+import { Menu, Search, UserAvatar, Sun, Moon, Home } from '@vicons/carbon';
 import { ref, h } from 'vue';
 import { RouterLink } from 'vue-router';
 import axios from 'axios';
@@ -31,23 +24,36 @@ import { useRouter } from 'vue-router';
 const emit = defineEmits(['toggle-theme']);
 const router = useRouter();
 
+const queryString = ref('');
 const suggestOptions = ref([]);
-const handleQuerySuggest = (query) => {
-  const queryType = query.type;
+
+const handleQuerySuggests = (query) => {
   const queryString = query.type ? query.target.value.trim() : query.trim();
-  if (queryType === 'blur' || !queryString) {
+  if (!queryString) {
     suggestOptions.value = [];
     return;
   }
   if (queryString) {
     axios
       .get(`/opensearch/suggestions?query=${queryString}`)
-      .then(({ data }) => (suggestOptions.value = data[1]));
+      .then(({ data }) => {
+        const [keyword, suggests] = data;
+        if (keyword === queryString) {
+          suggestOptions.value = suggests;
+        }
+      });
   }
+};
+
+const handleBlur = () => {
+  setTimeout(() => {
+    suggestOptions.value = [];
+  }, 100);
 };
 
 const handleRedirectSearch = (suggest) => {
   suggestOptions.value = [];
+  queryString.value = suggest;
   router.push(`/search?q=${suggest}`);
 };
 
@@ -78,7 +84,7 @@ const drawerOptions = [
       <n-space>
         <n-button type="primary" ghost circle @click="drawerActive = true">
           <template #icon>
-            <n-icon :component="ChevronRight" />
+            <n-icon :component="Menu" />
           </template>
         </n-button>
         <n-drawer v-model:show="drawerActive" placement="left">
@@ -103,9 +109,10 @@ const drawerOptions = [
             placeholder="Search"
             clearable
             status="success"
-            @input="handleQuerySuggest"
-            @focus="handleQuerySuggest"
-            @blur="handleQuerySuggest"
+            v-model:value="queryString"
+            @input="handleQuerySuggests"
+            @focus="handleQuerySuggests"
+            @blur="handleBlur"
             :style="{ minWidth: '400px' }"
           />
           <n-button attr-type="submit" type="primary">
@@ -127,7 +134,7 @@ const drawerOptions = [
             width: '400px',
             padding: '12px 0',
           }"
-          v-if="suggestOptions.length"
+          v-show="suggestOptions.length"
         >
           <n-list-item
             :style="{ padding: '5px 10px' }"
