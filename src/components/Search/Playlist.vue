@@ -1,7 +1,7 @@
 <script setup>
 import { NImage, NSpace, NH3, NText, NButton, NIcon } from 'naive-ui';
 import { CheckmarkFilled } from '@vicons/carbon';
-import { PlayOutlineFilled } from '@vicons/carbon';
+import { PlayFilledAlt } from '@vicons/carbon';
 
 const { playlist } = defineProps(['playlist']);
 </script>
@@ -27,7 +27,7 @@ const { playlist } = defineProps(['playlist']);
         align="center"
         justify="center"
       >
-        <n-icon :component="PlayOutlineFilled" size="64" />
+        <n-icon :component="PlayFilledAlt" size="64" />
       </n-space>
     </div>
     <n-space vertical>

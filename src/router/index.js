@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import Home from '../components/Home.vue';
 import Search from '../components/Search/index.vue';
-import Watch from '../components/Watch.vue';
+import Watch from '../components/Watch/index.vue';
 import Channel from '../components/Channel.vue';
 
 const router = createRouter({
