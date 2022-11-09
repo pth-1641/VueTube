@@ -1,5 +1,5 @@
 <script setup>
-import { NLayout, NLayoutContent, NGrid, NGridItem, NBackTop } from 'naive-ui';
+import { NLayout, NLayoutContent, NGrid, NGridItem } from 'naive-ui';
 import { useRoute } from 'vue-router';
 import { onMounted, ref, watch } from 'vue';
 import axios from 'axios';
@@ -29,7 +29,13 @@ watch(route, () => {
     <n-layout-content>
       <n-grid item-responsive :cols="12" :x-gap="20">
         <n-grid-item :span="8">
-          <MainVideo :video="videoDetail" />
+          <template v-if="videoDetail.title">
+            <MainVideo
+              :video="videoDetail"
+              :audioStreams="videoDetail.audioStreams"
+              :videoStreams="videoDetail.videoStreams"
+            />
+          </template>
           <Comments
             :uploaderUrl="videoDetail.uploaderUrl"
             :uploader="videoDetail.uploader"
@@ -41,5 +47,4 @@ watch(route, () => {
       </n-grid>
     </n-layout-content>
   </n-layout>
-  <n-back-top :right="100" :visibility-height="500" />
 </template>

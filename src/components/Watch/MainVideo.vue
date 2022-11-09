@@ -11,21 +11,60 @@ import {
   NCollapse,
   NCollapseItem,
   NTag,
+  NModal,
+  NRadio,
+  NSelect,
+  NForm,
+  NFormItem,
+  NInput,
+  NGrid,
+  NGi,
 } from 'naive-ui';
 import { useRoute, useRouter } from 'vue-router';
 import { formatCommaViews, formatViews } from '../../utils/format-view-count';
 import { renderHTML } from '../../utils/render-html';
+import { ref } from 'vue';
 import {
   ThumbsUp,
   ThumbsDown,
   CheckmarkFilled,
   PageLast,
+  Download,
 } from '@vicons/carbon';
 
 const route = useRoute();
 const router = useRouter();
 const videoId = route.query.v;
-const { video } = defineProps(['video']);
+const { video, audioStreams, videoStreams } = defineProps([
+  'video',
+  'audioStreams',
+  'videoStreams',
+]);
+
+const mp3Options = audioStreams
+  ?.filter((audio) => !audio.format.includes('WEBM'))
+  .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
+
+const mp4Options = videoStreams
+  ?.filter((audio) => !audio.format.includes('WEBM'))
+  .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
+
+const downloadLink = ref();
+const downloadInfo = ref({});
+const handleUpdateSelectedDetail = (value) => {
+  const selectedType = optionValue.value === 'mp3' ? mp3Options : mp4Options;
+  const index = selectedType.findIndex((option) => option.url === value);
+  downloadInfo.value = selectedType[index];
+  downloadLink.value = value;
+};
+
+const showModal = ref(false);
+const optionValue = ref('mp3');
+const handleSelectDownloadOption = (e) => {
+  optionValue.value = e.target.value;
+  downloadInfo.value = {};
+  downloadLink.value = null;
+};
 </script>
 
 <template>
@@ -67,9 +106,14 @@ const { video } = defineProps(['video']);
             <n-icon :component="CheckmarkFilled" size="15" />
           </template>
         </n-text>
-        <n-text
-          >{{ formatViews(video.uploaderSubscriberCount) }} subscribers</n-text
-        >
+        <template v-if="video.uploaderSubscriberCount > 0">
+          <n-text
+            >{{
+              formatViews(video.uploaderSubscriberCount)
+            }}
+            subscribers</n-text
+          >
+        </template>
       </n-space>
     </n-space>
     <n-space align="center">
@@ -106,10 +150,120 @@ const { video } = defineProps(['video']);
       </n-button>
     </n-space>
   </n-space>
-  <n-text code :style="{ marginTop: '8px' }"
-    >{{ formatCommaViews(video.views) }} views |
-    {{ video.uploadDate?.split('-').reverse().join('-') }}</n-text
+  <n-space
+    align="center"
+    justify="space-between"
+    :style="{ marginTop: '12px' }"
   >
+    <n-text code :style="{ marginTop: '8px' }"
+      >{{ formatCommaViews(video.views) }} views |
+      {{ video.uploadDate?.split('-').reverse().join('-') }}</n-text
+    >
+    <n-button round @click="showModal = true">
+      <template #icon>
+        <n-icon :component="Download" />
+      </template>
+      Download
+    </n-button>
+  </n-space>
+  <n-modal
+    v-model:show="showModal"
+    title="Download"
+    :bordered="false"
+    size="large"
+    transform-origin="center"
+    preset="card"
+    :style="{ maxWidth: '600px', width: '100%' }"
+  >
+    <n-space>
+      <n-radio
+        :checked="optionValue === 'mp3'"
+        value="mp3"
+        @change="handleSelectDownloadOption"
+      >
+        Mp3
+      </n-radio>
+      <n-radio
+        :checked="optionValue === 'mp4'"
+        value="mp4"
+        @change="handleSelectDownloadOption"
+      >
+        Mp4
+      </n-radio>
+    </n-space>
+    <n-form :style="{ marginTop: '8px' }">
+      <n-form-item label="Quality">
+        <template v-if="optionValue === 'mp3'">
+          <n-select
+            label-field="quality"
+            value-field="url"
+            children-field="quality"
+            :options="mp3Options"
+            @update:value="handleUpdateSelectedDetail"
+          />
+        </template>
+        <template v-else>
+          <n-select
+            label-field="quality"
+            value-field="url"
+            children-field="quality"
+            :options="mp4Options"
+            @update:value="handleUpdateSelectedDetail"
+          />
+        </template>
+      </n-form-item>
+      <n-grid :cols="2" x-gap="20">
+        <n-gi>
+          <n-form-item label="Format">
+            <n-input :value="downloadInfo.format ?? 'No data'" readonly />
+          </n-form-item>
+        </n-gi>
+        <n-gi>
+          <n-form-item label="Codec">
+            <n-input :value="downloadInfo.codec ?? 'No data'" readonly />
+          </n-form-item>
+        </n-gi>
+        <template v-if="optionValue === 'mp4'">
+          <n-gi>
+            <n-form-item label="Sound">
+              <n-input
+                :value="downloadInfo.videoOnly ? 'No' : 'Yes'"
+                readonly
+              />
+            </n-form-item>
+          </n-gi>
+          <n-gi>
+            <n-form-item label="FPS">
+              <n-input :value="downloadInfo.fps ?? 'No data'" readonly />
+            </n-form-item>
+          </n-gi>
+          <n-gi>
+            <n-form-item label="Width">
+              <n-input :value="downloadInfo.width ?? 0" readonly />
+            </n-form-item>
+          </n-gi>
+          <n-gi>
+            <n-form-item label="Height">
+              <n-input :value="downloadInfo.height ?? 0" readonly />
+            </n-form-item>
+          </n-gi>
+        </template>
+      </n-grid>
+      <n-space align="center" justify="center">
+        <n-button
+          type="primary"
+          tag="a"
+          target="_blank"
+          :disabled="!downloadLink"
+          download
+          :href="downloadLink"
+          :style="{ marginLeft: 'auto' }"
+        >
+          Download
+        </n-button>
+      </n-space>
+    </n-form>
+  </n-modal>
   <n-card :style="{ marginTop: '16px' }" :bordered="false" embedded>
     <n-collapse arrow-placement="right">
       <template #arrow>

@@ -1,14 +1,15 @@
 <script setup>
 import { NSpace, NAvatar, NText, NIcon, NH4, NTag, NEllipsis } from 'naive-ui';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { onMounted, ref, watch } from 'vue';
 import axios from 'axios';
 import { formatLikes } from '../../utils/format-view-count';
 import { renderHTML } from '../../utils/render-html';
-import { ThumbsUpFilled, Pin, FavoriteFilled } from '@vicons/carbon';
+import { ThumbsUp, Pin, FavoriteFilled } from '@vicons/carbon';
 import CommentReplies from './CommentReplies.vue';
 
 const route = useRoute();
+const router = useRouter();
 const videoComments = ref({});
 const { uploaderUrl, uploader } = defineProps(['uploaderUrl', 'uploader']);
 
@@ -35,7 +36,13 @@ watch(route, () => {
     :wrap="false"
     :style="{ marginBottom: '20px' }"
   >
-    <n-avatar :src="comment.thumbnail" circle :size="40" />
+    <n-avatar
+      :src="comment.thumbnail"
+      circle
+      :size="40"
+      :style="{ cursor: 'pointer' }"
+      @click="router.push(comment.commentorUrl)"
+    />
     <n-text tag="div" :style="{ display: 'flex', flexDirection: 'column' }">
       <template v-if="comment.pinned">
         <n-space :size="8" align="center" :style="{ marginBottom: '2px' }">
@@ -49,13 +56,18 @@ watch(route, () => {
             :bordered="false"
             round
             size="small"
-            :style="{ fontWeight: 600, fontSize: '14px' }"
+            :style="{ fontWeight: 600, fontSize: '14px', cursor: 'pointer' }"
+            @click="router.push(comment.commentorUrl)"
           >
             {{ comment.author }}
           </n-tag>
         </template>
         <template v-else>
-          <n-text strong>
+          <n-text
+            strong
+            :style="{ cursor: 'pointer' }"
+            @click="router.push(comment.commentorUrl)"
+          >
             {{ comment.author }}
           </n-text>
         </template>
@@ -69,7 +81,7 @@ watch(route, () => {
       </n-ellipsis>
       <n-space align="center" :size="14" :style="{ marginTop: '6px' }">
         <n-space align="start" :size="6">
-          <n-icon :component="ThumbsUpFilled" :size="17" />
+          <n-icon :component="ThumbsUp" :size="17" />
           <template v-if="comment.likeCount !== 0">
             <n-text :style="{ fontSize: '12px' }">{{
               formatLikes(comment.likeCount)
@@ -77,7 +89,7 @@ watch(route, () => {
           </template>
         </n-space>
         <n-icon
-          :component="ThumbsUpFilled"
+          :component="ThumbsUp"
           :size="17"
           :style="{ transform: 'rotate(180deg)' }"
         />
