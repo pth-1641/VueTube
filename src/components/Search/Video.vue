@@ -67,7 +67,7 @@ const router = useRouter();
           :style="{ display: 'flex', alignItems: 'center', gap: '8px' }"
         >
           <n-icon :component="ViewFilled" size="20" />
-          {{ formatViews(video.views) }} views
+          {{ formatViews(video.views) }} watching
         </n-text>
       </template>
       <template v-else>

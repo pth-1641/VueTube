@@ -1,5 +1,5 @@
 <script setup>
-import { NLayoutContent, NSpace, NLayout, NSelect } from 'naive-ui';
+import { NLayoutContent, NSpace, NLayout, NSelect, NText } from 'naive-ui';
 import { useRoute } from 'vue-router';
 import { onMounted, ref, watch } from 'vue';
 import axios from 'axios';
@@ -45,14 +45,14 @@ const handleUpdateFilter = () => getData(route.query.q);
 <template>
   <n-layout :style="{ padding: '24px 0' }">
     <n-layout-content :style="{ maxWidth: '1120px', margin: 'auto' }">
-      <div :style="{ marginBottom: '30px' }">
+      <n-text tag="div" :style="{ marginBottom: '30px' }">
         <n-select
           v-model:value="filter"
           :options="filterOptions"
           @update:value="handleUpdateFilter"
           :style="{ width: '150px', marginLeft: 'auto' }"
         />
-      </div>
+      </n-text>
       <n-space :size="15" :style="{ overflow: 'hidden' }" vertical>
         <template v-for="item in searchResults" :key="item.url">
           <template v-if="item.type === 'stream'">

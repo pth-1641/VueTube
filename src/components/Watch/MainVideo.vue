@@ -49,6 +49,11 @@ const mp4Options = videoStreams
   ?.filter((audio) => !audio.format.includes('WEBM'))
   .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
 
+const resetDefault = () => {
+  downloadInfo.value = {};
+  downloadLink.value = null;
+};
+
 const downloadLink = ref();
 const downloadInfo = ref({});
 const handleUpdateSelectedDetail = (value) => {
@@ -62,18 +67,28 @@ const showModal = ref(false);
 const optionValue = ref('mp3');
 const handleSelectDownloadOption = (e) => {
   optionValue.value = e.target.value;
-  downloadInfo.value = {};
-  downloadLink.value = null;
+  resetDefault();
+};
+
+const handleDownload = () => {
+  window.open(downloadLink.value);
+  showModal.value = false;
+  resetDefault();
 };
 </script>
 
 <template>
-  <iframe
+  <!-- <iframe
     :src="`http://www.youtube.com/embed/${videoId}`"
     frameborder="0"
     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope;
           picture-in-picture"
     allowfullscreen
+    :style="{ width: '100%', aspectRatio: '16/9', borderRadius: '8px' }"
+  /> -->
+  <video
+    src="http://www.example.com/movie.ogg"
+    controls
     :style="{ width: '100%', aspectRatio: '16/9', borderRadius: '8px' }"
   />
   <n-h3 :style="{ margin: 0, fontSize: '19px' }">{{ video.title }}</n-h3>
@@ -107,12 +122,10 @@ const handleSelectDownloadOption = (e) => {
           </template>
         </n-text>
         <template v-if="video.uploaderSubscriberCount > 0">
-          <n-text
-            >{{
-              formatViews(video.uploaderSubscriberCount)
-            }}
-            subscribers</n-text
-          >
+          <n-text :style="{ fontSize: '13px' }">
+            {{ formatViews(video.uploaderSubscriberCount) }}
+            subscribers
+          </n-text>
         </template>
       </n-space>
     </n-space>
@@ -173,6 +186,7 @@ const handleSelectDownloadOption = (e) => {
     size="large"
     transform-origin="center"
     preset="card"
+    :on-after-leave="resetDefault"
     :style="{ maxWidth: '600px', width: '100%' }"
   >
     <n-space>
@@ -249,19 +263,14 @@ const handleSelectDownloadOption = (e) => {
           </n-gi>
         </template>
       </n-grid>
-      <n-space align="center" justify="center">
-        <n-button
-          type="primary"
-          tag="a"
-          target="_blank"
-          :disabled="!downloadLink"
-          download
-          :href="downloadLink"
-          :style="{ marginLeft: 'auto' }"
-        >
-          Download
-        </n-button>
-      </n-space>
+      <n-button
+        type="primary"
+        :disabled="!downloadLink"
+        :style="{ margin: 'auto', display: 'block' }"
+        @click="handleDownload"
+      >
+        Download
+      </n-button>
     </n-form>
   </n-modal>
   <n-card :style="{ marginTop: '16px' }" :bordered="false" embedded>

@@ -2,13 +2,21 @@
 import { NImage, NSpace, NH3, NText, NButton, NIcon } from 'naive-ui';
 import { CheckmarkFilled } from '@vicons/carbon';
 import { PlayFilledAlt } from '@vicons/carbon';
+import { useRouter } from 'vue-router';
 
 const { playlist } = defineProps(['playlist']);
+const router = useRouter();
 </script>
 
 <template>
-  <n-space :wrap="false" :size="16">
-    <div
+  <n-space
+    :wrap="false"
+    :size="16"
+    :style="{ cursor: 'pointer' }"
+    @click="router.push(playlist.url + '&index=1')"
+  >
+    <n-text
+      tag="div"
       :style="{
         position: 'relative',
         height: '200px',
@@ -29,7 +37,7 @@ const { playlist } = defineProps(['playlist']);
       >
         <n-icon :component="PlayFilledAlt" size="64" />
       </n-space>
-    </div>
+    </n-text>
     <n-space vertical>
       <n-h3 :style="{ marginBottom: 0 }">
         {{ playlist.name }}

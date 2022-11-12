@@ -1,16 +1,21 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import Home from '../components/Home.vue';
-import Search from '../components/Search/index.vue';
-import Watch from '../components/Watch/index.vue';
-import Channel from '../components/Channel.vue';
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', component: Home },
-    { path: '/search', component: Search },
-    { path: '/watch', component: Watch },
-    { path: '/channel/:id', component: Channel },
+    { path: '/', component: () => import('../components/Home.vue') },
+    {
+      path: '/search',
+      component: () => import('../components/Search/index.vue'),
+    },
+    {
+      path: '/watch',
+      component: () => import('../components/Watch/index.vue'),
+    },
+    {
+      path: '/channel/:id',
+      component: () => import('../components/Channel/index.vue'),
+    },
   ],
 });
 

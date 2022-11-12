@@ -15,8 +15,8 @@ import { ThumbsUp, FavoriteFilled } from '@vicons/carbon';
 import { ref } from 'vue';
 import axios from 'axios';
 import { renderHTML } from '../../utils/render-html';
-import { formatLikes } from '../../utils/format-view-count';
-import { useRouter } from 'vue-router';
+import { formatViews } from '../../utils/format-view-count';
+import { useRouter, useRoute } from 'vue-router';
 
 const { replyCount, repliesPage, uploaderUrl } = defineProps([
   'replyCount',
@@ -24,25 +24,15 @@ const { replyCount, repliesPage, uploaderUrl } = defineProps([
   'uploaderUrl',
 ]);
 const replies = ref([]);
-const nextReplies = ref();
+const nextReplies = ref(repliesPage);
 const isLoading = ref(false);
 const router = useRouter();
+const videoId = useRoute().query.v;
 
 const handleGetReplies = () => {
   isLoading.value = true;
   axios
-    .get(`/nextpage/comments/red9YvYlPWg?nextpage=${repliesPage}`)
-    .then(({ data }) => {
-      replies.value = data.comments;
-      nextReplies.value = data.nextpage;
-    })
-    .finally(() => (isLoading.value = false));
-};
-
-const handleLoadMoreReplies = () => {
-  isLoading.value = true;
-  axios
-    .get(`/nextpage/comments/red9YvYlPWg?nextpage=${nextReplies.value}`)
+    .get(`/nextpage/comments/${videoId}?nextpage=${nextReplies.value}`)
     .then(({ data }) => {
       replies.value = [...replies.value, ...data.comments];
       nextReplies.value = data.nextpage;
@@ -113,7 +103,7 @@ const handleLoadMoreReplies = () => {
               <n-icon :component="ThumbsUp" :size="17" />
               <template v-if="reply.likeCount !== 0">
                 <n-text :style="{ fontSize: '12px' }">{{
-                  formatLikes(reply.likeCount)
+                  formatViews(reply.likeCount)
                 }}</n-text>
               </template>
             </n-space>
@@ -143,7 +133,7 @@ const handleLoadMoreReplies = () => {
             size="small"
             round
             type="primary"
-            @click="handleLoadMoreReplies"
+            @click="handleGetReplies"
             >Load more</n-button
           >
         </template>

@@ -6,7 +6,7 @@ import {
   CheckmarkFilled,
   WeatherStation,
   ViewFilled,
-  ContinueFilled,
+  ConnectionSignal,
 } from '@vicons/carbon';
 import { convertTimer } from '../../utils/convert-timer';
 
@@ -15,7 +15,7 @@ const { relatedVideos } = defineProps(['relatedVideos']);
 </script>
 
 <template>
-  <n-space vertical :size="2">
+  <n-space vertical :size="8">
     <n-space
       v-for="video in relatedVideos"
       :key="video.url"
@@ -23,13 +23,18 @@ const { relatedVideos } = defineProps(['relatedVideos']);
       @click="router.push(video.url)"
       :style="{ cursor: 'pointer' }"
     >
-      <n-text tag="div" :style="{ position: 'relative' }">
-        <n-image
-          :src="video.thumbnail"
-          height="96"
-          :style="{ borderRadius: '8px' }"
-          preview-disabled
-        />
+      <n-text
+        tag="div"
+        :style="{
+          position: 'relative',
+          aspectRatio: '16/9',
+          height: '96px',
+          borderRadius: '8px',
+          overflow: 'hidden',
+          backgroundColor: '#333',
+        }"
+      >
+        <img :src="video.thumbnail" :style="{ height: '100%' }" />
         <template v-if="video.duration < 0">
           <n-tag
             :bordered="false"
@@ -37,7 +42,7 @@ const { relatedVideos } = defineProps(['relatedVideos']);
             strong
             :style="{
               position: 'absolute',
-              bottom: '10px',
+              bottom: '5px',
               right: '5px',
               backgroundColor: '#f00',
               color: '#fff',
@@ -53,20 +58,20 @@ const { relatedVideos } = defineProps(['relatedVideos']);
           <n-text
             strong
             :style="{
-              height: '96px',
+              height: '30%',
               position: 'absolute',
-              inset: 0,
+              right: 0,
+              left: 0,
+              bottom: 0,
+              borderRadius: '0 0 8px 8px',
               backgroundColor: 'rgba(0,0,0,0.8)',
               color: '#fff',
-              borderRadius: '7px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '6px',
             }"
           >
-            <n-icon :component="ContinueFilled" />
-            PLAY ALL
+            <n-icon :component="ConnectionSignal" />
           </n-text>
         </template>
         <template v-else>
@@ -76,7 +81,7 @@ const { relatedVideos } = defineProps(['relatedVideos']);
             strong
             :style="{
               position: 'absolute',
-              bottom: '10px',
+              bottom: '5px',
               right: '5px',
             }"
           >
@@ -102,33 +107,25 @@ const { relatedVideos } = defineProps(['relatedVideos']);
             <n-icon :component="CheckmarkFilled" />
           </template>
         </n-text>
-        <template v-if="video.duration < 0">
-          <n-text
-            depth="3"
-            :style="{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }"
-          >
+        <n-text
+          depth="3"
+          :style="{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '12px',
+          }"
+        >
+          <template v-if="video.duration < 0">
             <n-icon :component="ViewFilled" size="20" />
             {{ formatViews(video.views) }} watching
-          </n-text>
-        </template>
-        <template v-else-if="video.type === 'playlist'" />
-        <template v-else>
-          <n-text
-            depth="3"
-            :style="{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }"
-          >
+          </template>
+          <template v-else-if="video.type === 'playlist'" />
+          <template v-else>
             {{ formatViews(video.views) }} views •
             {{ video.uploadedDate }}
-          </n-text>
-        </template>
+          </template>
+        </n-text>
       </n-space>
     </n-space>
   </n-space>
