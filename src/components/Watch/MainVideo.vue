@@ -84,8 +84,10 @@ onMounted(() => {
 
 <template>
   <iframe
-    :src="`https://www.youtube.com/embed/${videoId}?autoplay=1&amp;modestbranding=1&amp;showinfo=0`"
+    :src="`https://www.youtube.com/embed/${videoId}`"
+    title="YouTube video player"
     frameborder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
     allowfullscreen
     :style="{ width: '100%', aspectRatio: '16/9', borderRadius: '8px' }"
   />
