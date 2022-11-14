@@ -1,6 +1,12 @@
 <script setup>
 import Navbar from './components/Navbar.vue';
-import { NConfigProvider, darkTheme, lightTheme, NBackTop } from 'naive-ui';
+import {
+  NConfigProvider,
+  darkTheme,
+  lightTheme,
+  NBackTop,
+  NScrollbar,
+} from 'naive-ui';
 import { ref } from 'vue';
 
 const theme = ref(lightTheme);
@@ -14,7 +20,7 @@ const handleToggleTheme = () => {
   <n-config-provider :theme="theme">
     <Navbar @toggle-theme="handleToggleTheme" />
     <div :style="{ paddingTop: '54px' }" />
-    <router-view />
+    <router-view :key="$route.fullPath" />
     <n-back-top :visibility-height="500" :style="{ filter: 'invert(100%)' }" />
   </n-config-provider>
 </template>

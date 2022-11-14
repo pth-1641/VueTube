@@ -72,7 +72,7 @@ const handleGetReplies = () => {
                 round
                 size="small"
                 :style="{
-                  fontWeight: 600,
+                  fontWeight: 500,
                   fontSize: '14px',
                   cursor: 'pointer',
                 }"

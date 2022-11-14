@@ -3,9 +3,20 @@ import { NImage, NSpace, NH3, NText, NButton, NIcon } from 'naive-ui';
 import { CheckmarkFilled } from '@vicons/carbon';
 import { PlayFilledAlt } from '@vicons/carbon';
 import { useRouter } from 'vue-router';
+import axios from 'axios';
 
 const { playlist } = defineProps(['playlist']);
 const router = useRouter();
+
+const handleRedirectPlaylist = async () => {
+  try {
+    const playlistId = playlist.url.split('=')[1];
+    const { data } = await axios.get(`/playlists/${playlistId}`);
+    router.push(`${data.relatedStreams[0].url}&list=${playlistId}`);
+  } catch (err) {
+    console.error(err);
+  }
+};
 </script>
 
 <template>
@@ -13,7 +24,7 @@ const router = useRouter();
     :wrap="false"
     :size="16"
     :style="{ cursor: 'pointer' }"
-    @click="router.push(playlist.url + '&index=1')"
+    @click="handleRedirectPlaylist"
   >
     <n-text
       tag="div"

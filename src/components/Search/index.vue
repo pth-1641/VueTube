@@ -1,7 +1,7 @@
 <script setup>
 import { NLayoutContent, NSpace, NLayout, NSelect, NText } from 'naive-ui';
 import { useRoute } from 'vue-router';
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref } from 'vue';
 import axios from 'axios';
 import Video from './Video.vue';
 import Channel from './Channel.vue';
@@ -17,8 +17,6 @@ const getData = (q) =>
     .then(({ data }) => (searchResults.value = data.items));
 
 onMounted(() => getData(route.query.q));
-
-watch(route, () => getData(route.query.q));
 
 const filterOptions = [
   {
@@ -43,7 +41,7 @@ const handleUpdateFilter = () => getData(route.query.q);
 </script>
 
 <template>
-  <n-layout :style="{ padding: '24px 0' }">
+  <n-layout :style="{ padding: '24px 0', minHeight: '100vh' }">
     <n-layout-content :style="{ maxWidth: '1120px', margin: 'auto' }">
       <n-text tag="div" :style="{ marginBottom: '30px' }">
         <n-select

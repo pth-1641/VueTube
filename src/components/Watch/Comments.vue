@@ -1,7 +1,7 @@
 <script setup>
 import { NSpace, NAvatar, NText, NIcon, NH4, NTag, NEllipsis } from 'naive-ui';
 import { useRoute, useRouter } from 'vue-router';
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref } from 'vue';
 import axios from 'axios';
 import { formatViews } from '../../utils/format-view-count';
 import { renderHTML } from '../../utils/render-html';
@@ -14,16 +14,11 @@ const videoComments = ref({});
 const { uploaderUrl, uploader } = defineProps(['uploaderUrl', 'uploader']);
 
 const getComments = (videoId) =>
-  axios.get(`/comments/${videoId}`).then(({ data }) => {
-    console.log(data);
-    videoComments.value = data;
-  });
+  axios
+    .get(`/comments/${videoId}`)
+    .then(({ data }) => (videoComments.value = data));
 
 onMounted(() => {
-  getComments(route.query.v);
-});
-
-watch(route, () => {
   getComments(route.query.v);
 });
 </script>
@@ -63,7 +58,7 @@ watch(route, () => {
               :bordered="false"
               round
               size="small"
-              :style="{ fontWeight: 600, fontSize: '14px', cursor: 'pointer' }"
+              :style="{ fontWeight: 500, fontSize: '14px', cursor: 'pointer' }"
               @click="router.push(comment.commentorUrl)"
             >
               {{ comment.author }}

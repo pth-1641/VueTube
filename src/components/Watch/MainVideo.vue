@@ -23,7 +23,7 @@ import {
 import { useRoute, useRouter } from 'vue-router';
 import { formatCommaViews, formatViews } from '../../utils/format-view-count';
 import { renderHTML } from '../../utils/render-html';
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import {
   ThumbsUp,
   ThumbsDown,
@@ -75,22 +75,26 @@ const handleDownload = () => {
   showModal.value = false;
   resetDefault();
 };
+
+const videoPlayer = ref();
+onMounted(() => {
+  // console.log(videoPlayer.value.clientHeight);
+});
 </script>
 
 <template>
-  <!-- <iframe
-    :src="`http://www.youtube.com/embed/${videoId}`"
+  <iframe
+    :src="`https://www.youtube.com/embed/${videoId}?autoplay=1&amp;modestbranding=1&amp;showinfo=0`"
     frameborder="0"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope;
-          picture-in-picture"
     allowfullscreen
     :style="{ width: '100%', aspectRatio: '16/9', borderRadius: '8px' }"
-  /> -->
-  <video
+  />
+  <!-- <video
     src="http://www.example.com/movie.ogg"
     controls
     :style="{ width: '100%', aspectRatio: '16/9', borderRadius: '8px' }"
-  />
+    ref="videoPlayer"
+  /> -->
   <n-h3 :style="{ margin: 0, fontSize: '19px' }">{{ video.title }}</n-h3>
   <n-space
     align="center"
