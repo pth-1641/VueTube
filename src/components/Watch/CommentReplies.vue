@@ -17,6 +17,7 @@ import axios from 'axios';
 import { renderHTML } from '../../utils/render-html';
 import { formatViews } from '../../utils/format-view-count';
 import { useRouter, useRoute } from 'vue-router';
+import { getNextData } from '../../utils/get-next-data';
 
 const { replyCount, repliesPage, uploaderUrl } = defineProps([
   'replyCount',
@@ -29,15 +30,21 @@ const isLoading = ref(false);
 const router = useRouter();
 const videoId = useRoute().query.v;
 
-const handleGetReplies = () => {
+const handleGetReplies = async () => {
   isLoading.value = true;
-  axios
-    .get(`/nextpage/comments/${videoId}?nextpage=${nextReplies.value}`)
-    .then(({ data }) => {
-      replies.value = [...replies.value, ...data.comments];
-      nextReplies.value = data.nextpage;
-    })
-    .finally(() => (isLoading.value = false));
+  try {
+    const res = await getNextData({
+      id: videoId,
+      type: 'comments',
+      nextpage: nextReplies.value,
+    });
+    replies.value = [...replies.value, ...res.comments];
+    nextReplies.value = res.nextpage;
+  } catch (err) {
+    console.error(err);
+  } finally {
+    isLoading.value = false;
+  }
 };
 </script>
 

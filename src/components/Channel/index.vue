@@ -28,10 +28,15 @@ const route = useRoute();
 const channelId = route.params.id;
 const channelDetail = ref({});
 
-onMounted(() => {
-  axios
-    .get(`/channel/${channelId}`)
-    .then(({ data }) => (channelDetail.value = data));
+onMounted(async () => {
+  try {
+    const { data } = await axios.get(`/channel/${channelId}`);
+    channelDetail.value = data;
+    console.log(data);
+    document.title = `VueTube | ${data.name}`;
+  } catch (err) {
+    console.error(err);
+  }
 });
 </script>
 
@@ -82,7 +87,10 @@ onMounted(() => {
         }"
       >
         <n-tab-pane name="videos" tab="VIDEOS" :style="{ minHeight: '100vh' }">
-          <Videos :videos="channelDetail.relatedStreams" />
+          <Videos
+            :videos="channelDetail.relatedStreams"
+            :nextpage="channelDetail.nextpage"
+          />
         </n-tab-pane>
         <template v-for="tab in channelDetail.tabs">
           <n-tab-pane
@@ -104,7 +112,11 @@ onMounted(() => {
             </template>
           </n-tab-pane>
         </template>
-        <n-tab-pane name="about" tab="ABOUT" :style="{ minHeight: '100vh' }">
+        <n-tab-pane
+          name="about"
+          tab="ABOUT"
+          :style="{ minHeight: '100vh', padding: '30px 0' }"
+        >
           <span v-html="renderHTML(channelDetail.description)" />
         </n-tab-pane>
       </n-tabs>

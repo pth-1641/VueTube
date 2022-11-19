@@ -48,7 +48,7 @@ const handleQuerySuggests = (query) => {
 const handleBlur = () => {
   setTimeout(() => {
     suggestOptions.value = [];
-  }, 100);
+  }, 200);
 };
 
 const handleRedirectSearch = (suggest) => {

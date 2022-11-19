@@ -13,6 +13,10 @@ import { convertTimer } from '../../utils/convert-timer';
 const { list } = useRoute().query;
 const router = useRouter();
 const { relatedVideos } = defineProps(['relatedVideos']);
+
+const handleRedirectPlaylist = (url) => {
+  router.push(url.replace('playnext', 'index'));
+};
 </script>
 
 <template>
@@ -21,7 +25,7 @@ const { relatedVideos } = defineProps(['relatedVideos']);
       v-for="video in relatedVideos"
       :key="video.url"
       :wrap="false"
-      @click="router.push(video.url)"
+      @click="handleRedirectPlaylist(video.url)"
       :style="{ cursor: 'pointer' }"
     >
       <template v-if="!video.url.includes(list)">

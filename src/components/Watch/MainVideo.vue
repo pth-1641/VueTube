@@ -19,33 +19,35 @@ import {
   NInput,
   NGrid,
   NGi,
+  NSwitch,
+  useMessage,
 } from 'naive-ui';
 import { useRoute, useRouter } from 'vue-router';
 import { formatCommaViews, formatViews } from '../../utils/format-view-count';
 import { renderHTML } from '../../utils/render-html';
-import { onMounted, ref } from 'vue';
+import { ref, h } from 'vue';
 import {
   ThumbsUp,
   ThumbsDown,
   CheckmarkFilled,
   PageLast,
   Download,
+  Music,
+  VideoFilled,
+  VideoOffFilled,
 } from '@vicons/carbon';
+import CustomVideoPlayer from './CustomVideoPlayer.vue';
 
-const route = useRoute();
+const message = useMessage();
 const router = useRouter();
-const videoId = route.query.v;
-const { video, audioStreams, videoStreams } = defineProps([
-  'video',
-  'audioStreams',
-  'videoStreams',
-]);
+const { video } = defineProps(['video']);
+const onlyAudio = ref(false);
 
-const mp3Options = audioStreams
+const mp3Options = video.audioStreams
   ?.filter((audio) => !audio.format.includes('WEBM'))
   .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
 
-const mp4Options = videoStreams
+const mp4Options = video.videoStreams
   ?.filter((audio) => !audio.format.includes('WEBM'))
   .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
 
@@ -75,29 +77,20 @@ const handleDownload = () => {
   showModal.value = false;
   resetDefault();
 };
-
-const videoPlayer = ref();
-onMounted(() => {
-  // console.log(videoPlayer.value.clientHeight);
-});
 </script>
 
 <template>
-  <iframe
-    :src="`https://www.youtube.com/embed/${videoId}`"
-    title="YouTube video player"
-    frameborder="0"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowfullscreen
-    :style="{ width: '100%', aspectRatio: '16/9', borderRadius: '8px' }"
+  <CustomVideoPlayer
+    :audioStreams="video.audioStreams"
+    :videoStreams="video.videoStreams"
+    :duration="video.duration"
+    :nextVideo="video.relatedStreams[0]"
+    :thumbnail="video.thumbnailUrl"
+    :onlyAudio="onlyAudio"
   />
-  <!-- <video
-    src="http://www.example.com/movie.ogg"
-    controls
-    :style="{ width: '100%', aspectRatio: '16/9', borderRadius: '8px' }"
-    ref="videoPlayer"
-  /> -->
-  <n-h3 :style="{ margin: 0, fontSize: '19px' }">{{ video.title }}</n-h3>
+  <n-h3 :style="{ margin: 0, fontSize: '19px', marginTop: '6px' }">
+    {{ video.title }}
+  </n-h3>
   <n-space
     align="center"
     justify="space-between"
@@ -178,12 +171,29 @@ onMounted(() => {
       >{{ formatCommaViews(video.views) }} views |
       {{ video.uploadDate?.split('-').reverse().join('-') }}</n-text
     >
-    <n-button round @click="showModal = true">
-      <template #icon>
-        <n-icon :component="Download" />
-      </template>
-      Download
-    </n-button>
+    <n-space align="center">
+      <n-switch
+        @update:value="onlyAudio = !onlyAudio"
+        @click="
+          message.success(`Audio is ${onlyAudio ? 'on' : 'off'}`, {
+            icon: () => h(NIcon, null, { default: () => h(Music) }),
+          })
+        "
+      >
+        <template #checked-icon>
+          <n-icon :component="VideoOffFilled" />
+        </template>
+        <template #unchecked-icon>
+          <n-icon :component="VideoFilled" />
+        </template>
+      </n-switch>
+      <n-button round @click="showModal = true">
+        <template #icon>
+          <n-icon :component="Download" />
+        </template>
+        Download
+      </n-button>
+    </n-space>
   </n-space>
   <n-modal
     v-model:show="showModal"

@@ -15,6 +15,7 @@ const getVideoDetail = async (id) => {
   try {
     const { data } = await axios.get(`/streams/${id}`);
     videoDetail.value = data;
+    document.title = data.title;
   } catch (err) {
     console.error(err);
   }
@@ -29,11 +30,7 @@ onMounted(() => getVideoDetail(v));
       <n-grid item-responsive :cols="12" :x-gap="20">
         <n-grid-item :span="8">
           <template v-if="videoDetail.title">
-            <MainVideo
-              :video="videoDetail"
-              :audioStreams="videoDetail.audioStreams"
-              :videoStreams="videoDetail.videoStreams"
-            />
+            <MainVideo :video="videoDetail" />
           </template>
           <Comments
             :uploaderUrl="videoDetail.uploaderUrl"

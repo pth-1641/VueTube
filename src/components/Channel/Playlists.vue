@@ -12,14 +12,30 @@ import {
 import { Playlist } from '@vicons/carbon';
 import axios from 'axios';
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 const { data } = defineProps(['data']);
 const playlists = ref();
-onMounted(() => {
-  axios
-    .get(`/channels/tabs?data=${data}`)
-    .then((res) => (playlists.value = res.data));
+const router = useRouter();
+
+onMounted(async () => {
+  try {
+    const res = await axios.get(`/channels/tabs?data=${data}`);
+    playlists.value = res.data;
+  } catch (err) {
+    console.error(err);
+  }
 });
+
+const handleRedirectPlaylist = async (url) => {
+  try {
+    const playlistId = url.split('=')[1];
+    const { data } = await axios.get(`/playlists/${playlistId}`);
+    router.push(`${data.relatedStreams[0].url}&list=${playlistId}`);
+  } catch (err) {
+    console.error(err);
+  }
+};
 </script>
 
 <template>
@@ -39,7 +55,7 @@ onMounted(() => {
             flexDirection: 'column',
             cursor: 'pointer',
           }"
-          @click="router.push(playlist.url)"
+          @click="handleRedirectPlaylist(playlist.url)"
         >
           <n-text
             tag="div"
@@ -68,10 +84,10 @@ onMounted(() => {
                 justifyContent: 'center',
               }"
             >
-              <n-text :style="{ fontSize: '16px' }">{{
-                playlist.videos
-              }}</n-text>
-              <n-icon :component="Playlist" size="26" />
+              <n-text :style="{ fontSize: '16px', color: '#fff' }">
+                {{ playlist.videos }}
+              </n-text>
+              <n-icon :component="Playlist" size="26" color="#fff" />
             </n-text>
           </n-text>
           <n-ellipsis

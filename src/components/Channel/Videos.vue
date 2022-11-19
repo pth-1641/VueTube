@@ -4,10 +4,23 @@ import { useRouter } from 'vue-router';
 import { formatViews } from '../../utils/format-view-count';
 import { convertTimer } from '../../utils/convert-timer';
 import { convertDate } from '../../utils/convert-date';
+import { onMounted, onUnmounted } from 'vue';
 
 const router = useRouter();
-const { videos } = defineProps(['videos']);
+const { videos, nextpage } = defineProps(['videos', 'nextpage']);
 const currentTime = new Date().getTime();
+
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll);
+});
+
+const handleScroll = (e) => {
+  console.log(window.innerHeight);
+};
 </script>
 
 <template>
@@ -73,7 +86,6 @@ const currentTime = new Date().getTime();
       </n-gi>
     </n-grid>
   </template>
-
   <template v-else>
     <n-text tag="p" :style="{ textAlign: 'center' }">
       This channel has no playlists.

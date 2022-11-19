@@ -13,8 +13,10 @@ import { CheckmarkFilled } from '@vicons/carbon';
 import axios from 'axios';
 import { onMounted, ref } from 'vue';
 import { formatViews } from '../../utils/format-view-count';
+import { useRouter } from 'vue-router';
 
 const { data } = defineProps(['data']);
+const router = useRouter();
 const channels = ref();
 onMounted(() => {
   axios.get(`/channels/tabs?data=${data}`).then((res) => {
@@ -39,6 +41,7 @@ onMounted(() => {
           align="center"
           :size="0"
           @click="router.push(channel.url)"
+          :style="{ cursor: 'pointer' }"
         >
           <n-avatar :src="channel.thumbnail" :size="56" round />
           <n-space align="center" :size="6">

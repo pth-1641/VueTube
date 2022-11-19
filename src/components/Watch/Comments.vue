@@ -13,10 +13,14 @@ const router = useRouter();
 const videoComments = ref({});
 const { uploaderUrl, uploader } = defineProps(['uploaderUrl', 'uploader']);
 
-const getComments = (videoId) =>
-  axios
-    .get(`/comments/${videoId}`)
-    .then(({ data }) => (videoComments.value = data));
+const getComments = async (videoId) => {
+  try {
+    const { data } = await axios.get(`/comments/${videoId}`);
+    videoComments.value = data;
+  } catch (err) {
+    console.error(err);
+  }
+};
 
 onMounted(() => {
   getComments(route.query.v);

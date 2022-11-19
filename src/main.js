@@ -8,5 +8,4 @@ const randomURL = Math.floor(Math.random() * requestUrls.length);
 axios.defaults.baseURL = requestUrls[randomURL];
 const app = createApp(App);
 app.use(router);
-
 app.mount('#app');
