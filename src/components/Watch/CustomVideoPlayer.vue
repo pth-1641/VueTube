@@ -55,11 +55,11 @@ const leftOptions = markRaw({
   },
   Mute: {
     icon: VolumeUpFilled,
-    isShow: localStorage.volume,
+    isShow: localStorage.volume ? true : false,
   },
   Unmute: {
     icon: VolumeMuteFilled,
-    isShow: !localStorage.volume,
+    isShow: localStorage.volume ? false : true,
   },
 });
 
