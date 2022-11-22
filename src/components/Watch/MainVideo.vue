@@ -87,6 +87,7 @@ const handleDownload = () => {
     :nextVideo="video.relatedStreams[0]"
     :thumbnail="video.thumbnailUrl"
     :onlyAudio="onlyAudio"
+    :subtitles="video.subtitles"
   />
   <n-h3 :style="{ margin: 0, fontSize: '19px', marginTop: '6px' }">
     {{ video.title }}
@@ -167,10 +168,10 @@ const handleDownload = () => {
     justify="space-between"
     :style="{ marginTop: '12px' }"
   >
-    <n-text code :style="{ marginTop: '8px' }"
-      >{{ formatCommaViews(video.views) }} views |
-      {{ video.uploadDate?.split('-').reverse().join('-') }}</n-text
-    >
+    <n-text code :style="{ marginTop: '8px' }">
+      {{ formatCommaViews(video.views) }} views |
+      {{ video.uploadDate?.split('-').reverse().join('-') }}
+    </n-text>
     <n-space align="center">
       <n-switch
         @update:value="onlyAudio = !onlyAudio"
