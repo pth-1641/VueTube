@@ -12,6 +12,7 @@ import {
   NTabPane,
   NList,
   NListItem,
+  NTag,
 } from 'naive-ui';
 import {
   PlayFilledAlt,
@@ -31,7 +32,7 @@ import {
 import { convertTimer } from '../../utils/convert-timer';
 import { ref, markRaw, onBeforeUnmount, onMounted, h } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import xml2vtt from 'yt-xml2vtt';
+import { xmlToSubtitle } from '../../utils/xml-to-subtitle';
 
 const {
   audioStreams,
@@ -102,6 +103,8 @@ const videoProgressInterval = ref();
 const selectedQuality = ref();
 const selectedPlaybackRate = ref(1);
 const selectedSubtitle = ref('off');
+const subtitleCollection = ref();
+const subtitleContent = ref('');
 
 const videos = videoStreams
   .filter((v) => v.videoOnly)
@@ -152,6 +155,8 @@ const play = () => {
   videoRef?.value.play();
   leftOptions['Play'].isShow = false;
   leftOptions['Pause'].isShow = true;
+  volume.value = volume.value - 1;
+  volume.value = volume.value + 1;
 };
 
 const pause = () => {
@@ -159,6 +164,8 @@ const pause = () => {
   videoRef?.value.pause();
   leftOptions['Play'].isShow = true;
   leftOptions['Pause'].isShow = false;
+  volume.value = volume.value - 1;
+  volume.value = volume.value + 1;
 };
 
 const mute = () => {
@@ -191,6 +198,16 @@ const handleTimeUpdate = () => {
       Math.abs(videoRef.value.currentTime - audioRef.value.currentTime) > 0.1
     ) {
       videoRef.value.currentTime = audioRef.value.currentTime;
+    }
+  }
+  if (selectedSubtitle.value !== 'off') {
+    const currentSub = subtitleCollection.value.findIndex(
+      (s) => s.startTime <= playedTime.value && s.endTime > playedTime.value
+    );
+    if (currentSub > -1) {
+      subtitleContent.value = subtitleCollection.value[currentSub].text;
+    } else {
+      subtitleContent.value = '';
     }
   }
 };
@@ -244,6 +261,12 @@ const handleClickVideo = () => {
 const handleSelectQuality = (quality) => {
   pause();
   selectedQuality.value = qualities.findIndex((q) => q.quality === quality);
+  document
+    .querySelector('#setting-controls')
+    .classList.remove('settings-active');
+  document
+    .querySelector('#player-controls')
+    .classList.remove('settings-active');
 };
 
 // Select video playback rate
@@ -251,10 +274,27 @@ const handleSelectPlaybackRate = (playbackRate) => {
   audioRef.value.playbackRate = playbackRate;
   videoRef.value.playbackRate = playbackRate;
   selectedPlaybackRate.value = playbackRate;
+  document
+    .querySelector('#setting-controls')
+    .classList.remove('settings-active');
+  document
+    .querySelector('#player-controls')
+    .classList.remove('settings-active');
 };
 
 // Select subtitle
-const handleSelectSubtitle = async (sub) => {};
+const handleSelectSubtitle = async (sub) => {
+  document
+    .querySelector('#setting-controls')
+    .classList.remove('settings-active');
+  document
+    .querySelector('#player-controls')
+    .classList.remove('settings-active');
+  if (sub === 'off') return;
+  selectedSubtitle.value = sub;
+  const res = await fetch(sub.url);
+  subtitleCollection.value = xmlToSubtitle(await res.text());
+};
 
 onMounted(() => {
   audioRef.value.volume = volume.value / 100;
@@ -278,6 +318,21 @@ onBeforeUnmount(() => clearInterval(videoProgressInterval.value));
       justifyContent: 'center',
     }"
   >
+    <template v-if="subtitleContent && selectedSubtitle !== 'off'">
+      <n-tag
+        :bordered="false"
+        :style="{
+          position: 'absolute',
+          bottom: '65px',
+          right: '50%',
+          transform: 'translateX(50%)',
+          width: 'max-content',
+          pointerEvents: 'none',
+        }"
+      >
+        {{ subtitleContent }}
+      </n-tag>
+    </template>
     <template v-if="onlyAudio">
       <img :src="thumbnail" :style="{ height: '100%' }" />
     </template>
@@ -289,15 +344,8 @@ onBeforeUnmount(() => clearInterval(videoProgressInterval.value));
         @ended="handleAutoNextVideo"
         muted
         :src="qualities[selectedQuality]?.url"
-        type="video/mp4"
-      >
-        <track
-          :label="selectedSubtitle?.name"
-          kind="subtitles"
-          :srclang="selectedSubtitle?.code"
-          :src="selectedSubtitle?.url"
-        />
-      </video>
+        type="video/*"
+      />
     </template>
     <audio
       ref="audioRef"
@@ -353,6 +401,7 @@ onBeforeUnmount(() => clearInterval(videoProgressInterval.value));
           :format-tooltip="(time) => `${convertTimer(time)}`"
           :on-update-value="handleChangeVideoDuration"
         />
+
         <n-space
           align="center"
           justify="space-between"
@@ -622,7 +671,7 @@ onBeforeUnmount(() => clearInterval(videoProgressInterval.value));
                           color: '#fff',
                           gap: '6px',
                         }"
-                        @click="selectedSubtitle = 'off'"
+                        @click="handleSelectSubtitle('off')"
                       >
                         <n-icon
                           :component="Checkmark"
@@ -652,6 +701,10 @@ video::-webkit-media-controls {
 
 video::-webkit-media-controls-enclosure {
   display: none !important;
+}
+
+.n-list-item:hover {
+  background-color: rgba(255, 255, 255, 0.09) !important;
 }
 
 #player-controls,

@@ -588,8 +588,3 @@ vueuc@^0.4.47:
     seemly "^0.3.6"
     vdirs "^0.1.4"
     vooks "^0.2.4"
-
-yt-xml2vtt@^1.2.1:
-  version "1.2.1"
-  resolved "https://registry.yarnpkg.com/yt-xml2vtt/-/yt-xml2vtt-1.2.1.tgz#d81b98cdaab10a376e48994e2de61673dc2fb35b"
-  integrity sha512-wwXHy31ZkMfvs2iWvMMdVhWzlVghwOVpKLpJ8JXHsOyc5w6yi7NKrSpCgrIVKtMEylzYMJvbGRhzria3TUOq0w==
