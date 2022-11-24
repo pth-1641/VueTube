@@ -25,6 +25,7 @@ const emit = defineEmits(['toggle-theme']);
 const router = useRouter();
 
 const queryString = ref('');
+const isDark = localStorage.theme === 'dark';
 const suggestOptions = ref([]);
 
 const handleQuerySuggests = (query) => {
@@ -153,7 +154,11 @@ const drawerOptions = [
       </n-form>
 
       <n-space align="center" justify="center">
-        <n-switch @update:value="emit('toggle-theme')" size="small">
+        <n-switch
+          @update:value="emit('toggle-theme')"
+          size="small"
+          :default-value="isDark"
+        >
           <template #checked-icon>
             <n-icon :component="Moon" />
           </template>

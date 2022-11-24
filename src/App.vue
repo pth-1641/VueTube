@@ -12,10 +12,11 @@ import {
 import { ref } from 'vue';
 import { BackToTop } from '@vicons/carbon';
 
-const theme = ref(lightTheme);
+const theme = ref(localStorage.theme === 'dark' ? darkTheme : lightTheme);
 const handleToggleTheme = () => {
   const currentTheme = theme.value.name;
   theme.value = currentTheme === 'light' ? darkTheme : lightTheme;
+  localStorage.theme = theme.value.name;
 };
 </script>
 
