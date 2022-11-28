@@ -20,12 +20,21 @@ const router = useRouter();
       padding: '30px 0',
       cursor: 'pointer',
     }"
-    @click="router.push(channel.url)"
   >
-    <n-space :style="{ width: '360px' }" align="center" justify="center">
+    <n-space
+      :style="{ width: '360px' }"
+      align="center"
+      justify="center"
+      @click="router.push(channel.url)"
+    >
       <n-avatar :src="channel.thumbnail" :size="96" round />
     </n-space>
-    <n-space vertical :size="4" :style="{ flex: 1 }">
+    <n-space
+      vertical
+      :size="4"
+      :style="{ flex: 1 }"
+      @click="router.push(channel.url)"
+    >
       <n-space align="center" size="small">
         <n-h3 :style="{ marginBottom: 0 }">
           {{ channel.name }}
@@ -58,8 +67,9 @@ const router = useRouter();
         type="success"
         :style="{ fontWeight: 600 }"
         @click="isSubscribe = true"
-        >SUBSCRIBE</n-button
       >
+        SUBSCRIBE
+      </n-button>
     </template>
   </n-text>
 </template>

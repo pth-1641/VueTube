@@ -9,70 +9,109 @@ import {
   NSwitch,
   NDrawer,
   NDrawerContent,
-  NMenu,
   NLayoutHeader,
-  NGradientText,
   NList,
   NListItem,
+  NAvatar,
+  NText,
+  NCard,
+  NH6,
+  NH2,
+  NH5,
+  NTag,
+  NMenu,
 } from 'naive-ui';
-import { Menu, Search, UserAvatar, Sun, Moon, Home } from '@vicons/carbon';
-import { ref, h } from 'vue';
+import {
+  Menu,
+  Search,
+  UserAvatar,
+  Sun,
+  Moon,
+  Home,
+  Logout,
+  ThumbsUp,
+  Time,
+} from '@vicons/carbon';
+import { ref, h, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
 import axios from 'axios';
 import { useRouter } from 'vue-router';
+import { supabase } from '../supabase';
+import VueLogo from '../assets/vue.svg';
 
+const isDark = localStorage.theme === 'dark';
 const emit = defineEmits(['toggle-theme']);
 const router = useRouter();
-
 const queryString = ref('');
-const isDark = localStorage.theme === 'dark';
+const user = ref();
+const inputRef = ref();
+const isShowAccount = ref(false);
 const suggestOptions = ref([]);
+const drawerActive = ref(false);
+const isShowSuggests = ref(false);
 
 const handleQuerySuggests = (query) => {
+  isShowSuggests.value = true;
   const queryString = query.type ? query.target.value.trim() : query.trim();
   if (!queryString) {
-    suggestOptions.value = [];
+    isShowSuggests.value = false;
     return;
   }
-  if (queryString) {
-    axios
-      .get(`/opensearch/suggestions?query=${queryString}`)
-      .then(({ data }) => {
-        const [keyword, suggests] = data;
-        if (keyword === queryString) {
-          suggestOptions.value = suggests;
-        }
-      });
-  }
+  axios.get(`/opensearch/suggestions?query=${queryString}`).then(({ data }) => {
+    suggestOptions.value = data[1];
+  });
 };
 
-const handleBlur = () => {
-  setTimeout(() => {
-    suggestOptions.value = [];
-  }, 200);
+const handleSignInWithGoogle = async () => {
+  await supabase.auth.signInWithOAuth({
+    provider: 'google',
+  });
+};
+
+const handleSignOut = async () => {
+  const { error } = await supabase.auth.signOut();
+  if (!error) {
+    user.value = null;
+  }
 };
 
 const handleRedirectSearch = (suggest) => {
-  suggestOptions.value = [];
-  queryString.value = suggest;
-  router.push(`/search?q=${suggest}`);
+  isShowSuggests.value = false;
+  queryString.value = suggest.trim();
+  inputRef.value.blur();
+  router.push(`/search?q=${suggest.trim().split(' ').join('+')}`);
 };
 
-const drawerActive = ref(false);
-const renderIcon = (icon) => () => h(NIcon, null, () => h(icon));
-const renderRoute = (route) =>
-  h(RouterLink, {
-    to: route,
-  });
+// Drawer
+const renderIcon = (icon) => {
+  return () => h(NIcon, null, { default: () => h(icon) });
+};
 
 const drawerOptions = [
   {
     label: 'Home',
     icon: renderIcon(Home),
+    route: '/',
     key: 'home',
-    route: renderRoute('/'),
+  },
+  {
+    label: 'Liked videos',
+    icon: renderIcon(ThumbsUp),
+    route: '/liked',
+    key: 'liked-videos',
+  },
+  {
+    label: 'History',
+    icon: renderIcon(Time),
+    route: '/history',
+    key: 'history',
   },
 ];
+
+onMounted(async () => {
+  const { data } = await supabase.auth.getUser();
+  user.value = data.user;
+});
 </script>
 
 <template>
@@ -83,38 +122,48 @@ const drawerOptions = [
       justify="space-between"
     >
       <n-space>
-        <n-button type="primary" ghost circle @click="drawerActive = true">
+        <n-button
+          type="primary"
+          quaternary
+          circle
+          @click="drawerActive = true"
+          :focusable="false"
+        >
           <template #icon>
-            <n-icon :component="Menu" />
+            <n-icon :component="Menu" size="24" />
           </template>
         </n-button>
-        <n-drawer v-model:show="drawerActive" placement="left">
-          <n-drawer-content>
-            <template #header>
-              <n-gradient-text
-                size="25"
-                type="success"
-                :style="{ fontWeight: 700 }"
-              >
-                VueTube
-              </n-gradient-text>
-            </template>
-            <n-menu :options="drawerOptions" />
-          </n-drawer-content>
-        </n-drawer>
+        <n-space
+          align="center"
+          :size="0"
+          @click="router.push('/')"
+          :style="{ cursor: 'pointer' }"
+        >
+          <n-avatar
+            :src="VueLogo"
+            :style="{ backgroundColor: 'transparent' }"
+            size="small"
+          />
+          <n-h2 :style="{ margin: 0 }">
+            <n-text type="success"> ueTube </n-text>
+          </n-h2>
+        </n-space>
       </n-space>
-
-      <n-form :style="{ position: 'relative' }">
+      <n-form
+        :style="{ position: 'relative' }"
+        @submit.prevent="handleRedirectSearch(queryString)"
+      >
         <n-input-group>
           <n-input
+            ref="inputRef"
             placeholder="Search"
             clearable
             status="success"
             v-model:value="queryString"
             @input="handleQuerySuggests"
             @focus="handleQuerySuggests"
-            @blur="handleBlur"
-            :style="{ minWidth: '400px' }"
+            @blur="isShowSuggests = false"
+            :style="{ minWidth: '360px' }"
           />
           <n-button attr-type="submit" type="primary">
             <template #icon>
@@ -135,13 +184,13 @@ const drawerOptions = [
             width: '400px',
             padding: '12px 0',
           }"
-          v-show="suggestOptions.length"
+          v-show="isShowSuggests && suggestOptions.length"
         >
           <n-list-item
             :style="{ padding: '5px 10px' }"
             v-for="suggest in suggestOptions"
             :key="suggest"
-            @click="handleRedirectSearch(suggest)"
+            @mousedown="handleRedirectSearch(suggest)"
           >
             <n-space :wrap="false" align="center">
               <div :style="{ display: 'flex', alignItems: 'center' }">
@@ -152,8 +201,7 @@ const drawerOptions = [
           </n-list-item>
         </n-list>
       </n-form>
-
-      <n-space align="center" justify="center">
+      <n-space align="center" justify="center" :size="20">
         <n-switch
           @update:value="emit('toggle-theme')"
           size="small"
@@ -166,13 +214,105 @@ const drawerOptions = [
             <n-icon :component="Sun" />
           </template>
         </n-switch>
-        <n-button type="primary" ghost>
-          <template #icon>
-            <n-icon :component="UserAvatar" size="20" />
-          </template>
-          Login
-        </n-button>
+        <template v-if="user">
+          <n-text
+            tag="div"
+            :style="{
+              display: 'flex',
+              alignItems: 'center',
+              position: 'relative',
+            }"
+          >
+            <n-avatar
+              :src="user.user_metadata.avatar_url"
+              round
+              :style="{ cursor: 'pointer' }"
+              @click="isShowAccount = !isShowAccount"
+            />
+            <template v-if="isShowAccount">
+              <n-card
+                size="small"
+                :style="{
+                  position: 'absolute',
+                  top: '40px',
+                  right: 0,
+                  borderRadius: '8px',
+                  width: 'max-content',
+                }"
+              >
+                <n-space>
+                  <n-avatar
+                    :src="user.user_metadata.avatar_url"
+                    round
+                    size="large"
+                  />
+                  <div>
+                    <n-h6 :style="{ margin: 0 }">
+                      {{ user.user_metadata.full_name }}
+                    </n-h6>
+                    <n-tag :bordered="false" type="success" round size="small">
+                      {{ user.email }}
+                    </n-tag>
+                  </div>
+                </n-space>
+                <template #action>
+                  <n-button
+                    :style="{ marginLeft: 'auto', display: 'flex' }"
+                    @click="handleSignOut"
+                  >
+                    <template #icon>
+                      <n-icon :component="Logout" size="20" />
+                    </template>
+                    Sign out
+                  </n-button>
+                </template>
+              </n-card>
+            </template>
+          </n-text>
+        </template>
+        <template v-else>
+          <n-button type="primary" ghost @click="handleSignInWithGoogle">
+            <template #icon>
+              <n-icon :component="UserAvatar" size="20" />
+            </template>
+            Login
+          </n-button>
+        </template>
       </n-space>
     </n-space>
   </n-layout-header>
+  <!-- Sidebar -->
+  <n-drawer
+    v-model:show="drawerActive"
+    placement="left"
+    display-directive="show"
+  >
+    <n-drawer-content
+      :header-style="{ padding: '14px' }"
+      :body-content-style="{ padding: '2px' }"
+      :footer-style="{ padding: '8px' }"
+    >
+      <template #header>
+        <n-space align="center" :size="0">
+          <n-avatar
+            :src="VueLogo"
+            :style="{ backgroundColor: 'transparent' }"
+            size="small"
+          />
+          <n-h2 :style="{ margin: 0 }">
+            <n-text type="success"> ueTube </n-text>
+          </n-h2>
+        </n-space>
+      </template>
+      <n-menu :options="drawerOptions" :indent="16" />
+      <n-h5 prefix="bar" :style="{ margin: '8px' }" type="success"
+        >Subscriptions</n-h5
+      >
+      <template #footer>
+        <n-space align="center">
+          <n-text type="info" italic> pth-1641 ❤</n-text>
+        </n-space>
+      </template>
+    </n-drawer-content>
+  </n-drawer>
 </template>

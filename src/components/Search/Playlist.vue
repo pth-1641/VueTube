@@ -33,6 +33,7 @@ const handleRedirectPlaylist = async () => {
         height: '200px',
         borderRadius: '8px',
         overflow: 'hidden',
+        backgroundColor:'#333'
       }"
     >
       <n-image :src="playlist.thumbnail" preview-disabled width="360" />

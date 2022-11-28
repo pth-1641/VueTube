@@ -22,7 +22,7 @@ import {
   NSwitch,
   useMessage,
 } from 'naive-ui';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { formatCommaViews, formatViews } from '../../utils/format-view-count';
 import { renderHTML } from '../../utils/render-html';
 import { ref, h } from 'vue';
@@ -40,7 +40,9 @@ import CustomVideoPlayer from './CustomVideoPlayer.vue';
 
 const message = useMessage();
 const router = useRouter();
-const { video } = defineProps(['video']);
+const route = useRoute();
+const { video, startTimeChapter } = defineProps(['video', 'startTimeChapter']);
+const emit = defineEmits(['time-update']);
 const onlyAudio = ref(false);
 
 const mp3Options = video.audioStreams
@@ -77,17 +79,23 @@ const handleDownload = () => {
   showModal.value = false;
   resetDefault();
 };
+
+const getUpdateTime = ({ currentTime }) => {
+  emit('time-update', { currentTime });
+};
 </script>
 
 <template>
   <CustomVideoPlayer
     :audioStreams="video.audioStreams"
     :videoStreams="video.videoStreams"
-    :duration="video.duration"
     :nextVideo="video.relatedStreams[0]"
+    :duration="video.duration"
     :thumbnail="video.thumbnailUrl"
     :onlyAudio="onlyAudio"
     :subtitles="video.subtitles"
+    :startTimeChapter="startTimeChapter"
+    @time-update="getUpdateTime"
   />
   <n-h3 :style="{ margin: 0, fontSize: '19px', marginTop: '6px' }">
     {{ video.title }}

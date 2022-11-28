@@ -1,26 +1,65 @@
 <script setup>
-import { NText, NEllipsis, NGrid, NGi, NTag } from 'naive-ui';
-import { useRouter } from 'vue-router';
+import { NText, NEllipsis, NGrid, NGi, NTag, NSpin, NSpace } from 'naive-ui';
+import { useRouter, useRoute } from 'vue-router';
+import { ref, watch } from 'vue';
 import { formatViews } from '../../utils/format-view-count';
 import { convertTimer } from '../../utils/convert-timer';
 import { convertDate } from '../../utils/convert-date';
-import { onMounted, onUnmounted } from 'vue';
+import { onMounted, onBeforeUnmount } from 'vue';
+import { getNextData } from '../../utils/get-next-data';
+import axios from 'axios';
 
+const { channelId } = defineProps(['channelId']);
+const route = useRoute();
 const router = useRouter();
-const { videos, nextpage } = defineProps(['videos', 'nextpage']);
 const currentTime = new Date().getTime();
+const videos = ref();
+const nextpageData = ref();
+const isLoading = ref(false);
+
+const getNextVideos = async () => {
+  const endOfPage =
+    window.scrollY + window.innerHeight >= document.body.offsetHeight;
+  if (!endOfPage || !nextpageData.value) return;
+  if (isLoading.value) return;
+  try {
+    isLoading.value = true;
+    const res = await getNextData({
+      type: 'channel',
+      nextpage: nextpageData.value,
+      id: channelId,
+    });
+    nextpageData.value = res.nextpage;
+    videos.value = [...videos.value, ...res.relatedStreams];
+  } catch (err) {
+    console.error(err);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const getVideos = async (id) => {
+  try {
+    const { data } = await axios.get(`/channel/${id}`);
+    videos.value = data.relatedStreams;
+    nextpageData.value = data.nextpage;
+  } catch (err) {
+    console.error(err);
+  }
+};
 
 onMounted(() => {
-  window.addEventListener('scroll', handleScroll);
+  getVideos(channelId);
+  window.addEventListener('scroll', getNextVideos);
 });
-
-onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll);
-});
-
-const handleScroll = (e) => {
-  console.log(window.innerHeight);
-};
+onBeforeUnmount(() => window.removeEventListener('scroll', getNextVideos));
+watch(
+  route,
+  ({ params }) => {
+    getVideos(params.id);
+  },
+  { deep: true }
+);
 </script>
 
 <template>
@@ -85,6 +124,11 @@ const handleScroll = (e) => {
         </n-text>
       </n-gi>
     </n-grid>
+    <template v-if="isLoading">
+      <n-space align="center" justify="center" :style="{ marginTop: '40px' }">
+        <n-spin :size="36" />
+      </n-space>
+    </template>
   </template>
   <template v-else>
     <n-text tag="p" :style="{ textAlign: 'center' }">

@@ -5,9 +5,9 @@ import {
   darkTheme,
   lightTheme,
   NBackTop,
-  NScrollbar,
   NMessageProvider,
   NIcon,
+  NLoadingBarProvider,
 } from 'naive-ui';
 import { ref } from 'vue';
 import { BackToTop } from '@vicons/carbon';
@@ -23,20 +23,23 @@ const handleToggleTheme = () => {
 <template>
   <n-config-provider :theme="theme">
     <n-message-provider>
-      <Navbar @toggle-theme="handleToggleTheme" />
-      <div :style="{ paddingTop: '54px' }" />
-      <router-view :key="$route.fullPath" />
-      <n-back-top
-        :visibility-height="500"
-        :style="{ filter: 'invert(100%)', boxShadow: 'none' }"
-      >
-        <n-icon :component="BackToTop" :size="24" />
-      </n-back-top>
+      <n-loading-bar-provider>
+        <Navbar @toggle-theme="handleToggleTheme" />
+        <div :style="{ paddingTop: '54px' }" />
+        <router-view />
+        <n-back-top
+          :visibility-height="500"
+          :style="{ filter: 'invert(100%)', boxShadow: 'none' }"
+        >
+          <n-icon :component="BackToTop" :size="24" />
+        </n-back-top>
+      </n-loading-bar-provider>
     </n-message-provider>
   </n-config-provider>
 </template>
 
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400;1,500&display=swap');
 body {
   font-family: 'Roboto', sans-serif;
 }

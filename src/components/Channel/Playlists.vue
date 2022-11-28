@@ -11,21 +11,35 @@ import {
 } from 'naive-ui';
 import { Playlist } from '@vicons/carbon';
 import axios from 'axios';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 
-const { data } = defineProps(['data']);
+const { data, channelId } = defineProps(['data', 'channelId']);
 const playlists = ref();
+const nextpageData = ref();
+const isLoading = ref(false);
 const router = useRouter();
 
-onMounted(async () => {
+const getNextPlaylists = async () => {
+  const endOfPage =
+    window.scrollY + window.innerHeight >= document.body.offsetHeight;
+  if (!endOfPage || !nextpageData.value) return;
+  if (isLoading.value) return;
   try {
-    const res = await axios.get(`/channels/tabs?data=${data}`);
-    playlists.value = res.data;
+    isLoading.value = true;
+    const res = await getNextData({
+      type: 'channel',
+      nextpage: nextpageData.value,
+      id: channelId,
+    });
+    nextpageData.value = res.nextpage;
+    playlists.value = [...playlists.value, ...res.relatedStreams];
   } catch (err) {
     console.error(err);
+  } finally {
+    isLoading.value = false;
   }
-});
+};
 
 const handleRedirectPlaylist = async (url) => {
   try {
@@ -36,6 +50,19 @@ const handleRedirectPlaylist = async (url) => {
     console.error(err);
   }
 };
+
+onMounted(async () => {
+  try {
+    const res = await axios.get(`/channels/tabs?data=${data}`);
+    playlists.value = res.data.content;
+    nextpageData.value = res.data.nextpage;
+    window.addEventListener('scroll', getNextPlaylists);
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+onBeforeUnmount(() => window.removeEventListener('scroll', getNextPlaylists));
 </script>
 
 <template>
@@ -45,10 +72,10 @@ const handleRedirectPlaylist = async (url) => {
     </n-space>
   </template>
   <template v-else>
-    <template v-if="playlists?.content.length">
+    <template v-if="playlists.length">
       <n-grid :cols="5" x-gap="16" y-gap="36" :style="{ padding: '30px 0' }">
         <n-gi
-          v-for="playlist in playlists?.content"
+          v-for="playlist in playlists"
           :key="playlist.url"
           :style="{
             display: 'flex',
@@ -104,6 +131,15 @@ const handleRedirectPlaylist = async (url) => {
             >View full playlist</n-button
           >
         </n-gi>
+        <template v-if="isLoading">
+          <n-space
+            align="center"
+            justify="center"
+            :style="{ marginTop: '40px' }"
+          >
+            <n-spin :size="36" />
+          </n-space>
+        </template>
       </n-grid>
     </template>
     <template v-else>

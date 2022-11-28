@@ -16,13 +16,17 @@ const router = useRouter();
     :style="{ cursor: 'pointer' }"
     @click="router.push(video.url)"
   >
-    <n-text tag="div" :style="{ position: 'relative', height: '200px' }">
-      <n-image
-        :src="video.thumbnail"
-        preview-disabled
-        :style="{ borderRadius: '8px' }"
-        width="360"
-      />
+    <n-text
+      tag="div"
+      :style="{
+        position: 'relative',
+        height: '200px',
+        backgroundColor: '#333',
+        borderRadius: '8px',
+        overflow: 'hidden',
+      }"
+    >
+      <n-image :src="video.thumbnail" preview-disabled width="360" />
       <template v-if="video.duration < 0">
         <n-tag
           :bordered="false"

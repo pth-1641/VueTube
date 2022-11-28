@@ -11,10 +11,11 @@ import {
   NButton,
   NTabs,
   NTabPane,
+  useLoadingBar,
 } from 'naive-ui';
 import { CheckmarkFilled } from '@vicons/carbon';
 import { useRoute } from 'vue-router';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { formatViews } from '../../utils/format-view-count';
 import { renderHTML } from '../../utils/render-html';
@@ -25,24 +26,37 @@ import Shorts from './Shorts.vue';
 import Livestreams from './Livestreams.vue';
 
 const route = useRoute();
-const channelId = route.params.id;
+const channelId = ref(route.params.id);
 const channelDetail = ref({});
+const loadingBar = useLoadingBar();
+const aboutContent = ref();
+const selectedTab = ref('');
 
-onMounted(async () => {
+const getChannelData = async (id) => {
   try {
-    const { data } = await axios.get(`/channel/${channelId}`);
+    loadingBar.start();
+    const { data } = await axios.get(`/channel/${id}`);
     channelDetail.value = data;
-    console.log(data);
+    aboutContent.value = data.description;
     document.title = `VueTube | ${data.name}`;
+    selectedTab.value = 'videos';
+    loadingBar.finish();
   } catch (err) {
     console.error(err);
+    loadingBar.error();
   }
+};
+
+onMounted(() => getChannelData(channelId.value));
+watch(route, ({ params }) => {
+  getChannelData(params.id);
+  channelId.value = params.id;
 });
 </script>
 
 <template>
   <n-layout>
-    <n-image :src="channelDetail.bannerUrl" width="9999" preview-disabled />
+    <n-image :src="channelDetail.bannerUrl" width="99999" preview-disabled />
     <n-layout-content :style="{ maxWidth: '1180px', margin: 'auto' }">
       <n-space
         align="center"
@@ -80,17 +94,15 @@ onMounted(async () => {
       <n-tabs
         type="line"
         animated
-        default-value="videos"
         :tab-style="{
           fontWeight: 600,
           padding: '10px 24px',
         }"
+        :value="selectedTab"
+        :on-update:value="(t) => (selectedTab = t)"
       >
         <n-tab-pane name="videos" tab="VIDEOS" :style="{ minHeight: '100vh' }">
-          <Videos
-            :videos="channelDetail.relatedStreams"
-            :nextpage="channelDetail.nextpage"
-          />
+          <Videos :channelId="channelId" />
         </n-tab-pane>
         <template v-for="tab in channelDetail.tabs">
           <n-tab-pane
@@ -99,16 +111,16 @@ onMounted(async () => {
             :style="{ minHeight: '100vh' }"
           >
             <template v-if="tab.name.toLowerCase() === 'playlists'">
-              <Playlists :data="tab.data" />
+              <Playlists :data="tab.data" :channelId="channelId" />
             </template>
             <template v-else-if="tab.name.toLowerCase() === 'channels'">
-              <RelatedChannels :data="tab.data" />
+              <RelatedChannels :data="tab.data" :channelId="channelId" />
             </template>
             <template v-else-if="tab.name.toLowerCase() === 'shorts'">
-              <Shorts :data="tab.data" />
+              <Shorts :data="tab.data" :channelId="channelId" />
             </template>
             <template v-else-if="tab.name.toLowerCase() === 'livestreams'">
-              <Livestreams :data="tab.data" />
+              <Livestreams :data="tab.data" :channelId="channelId" />
             </template>
           </n-tab-pane>
         </template>
@@ -117,7 +129,7 @@ onMounted(async () => {
           tab="ABOUT"
           :style="{ minHeight: '100vh', padding: '30px 0' }"
         >
-          <span v-html="renderHTML(channelDetail.description)" />
+          <span v-html="renderHTML(aboutContent)" />
         </n-tab-pane>
       </n-tabs>
     </n-layout-content>

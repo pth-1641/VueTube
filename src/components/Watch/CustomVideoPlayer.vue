@@ -46,6 +46,7 @@ const {
   thumbnail,
   onlyAudio,
   subtitles,
+  startTimeChapter,
 } = defineProps([
   'audioStreams',
   'videoStreams',
@@ -54,16 +55,19 @@ const {
   'thumbnail',
   'onlyAudio',
   'subtitles',
+  'startTimeChapter',
 ]);
+
+const emit = defineEmits(['time-update']);
 
 const leftOptions = markRaw({
   Play: {
     icon: PlayFilledAlt,
-    isShow: true,
+    isShow: false,
   },
   Pause: {
     icon: PauseFilled,
-    isShow: false,
+    isShow: true,
   },
   Next: {
     icon: SkipForwardFilled,
@@ -86,7 +90,7 @@ const rightOptions = markRaw({
   },
   Miniplayer: {
     icon: BringToFront,
-    isShow: document.pictureInPictureEnabled && !onlyAudio,
+    isShow: document.pictureInPictureEnabled,
   },
   'Full screen': {
     icon: Maximize,
@@ -103,43 +107,52 @@ const volume = ref(localStorage.volume ? +localStorage.volume : 100);
 const autoNextVideo = ref(true);
 const timeoutPercent = ref(0);
 const videoProgressInterval = ref();
-const selectedQuality = ref();
-const selectedPlaybackRate = ref(1);
+const selectedQuality = ref('720p');
 const selectedSubtitle = ref('off');
 const subtitleCollection = ref();
 const subtitleContent = ref('');
-const playerStatus = ref('pause');
+const playerStatus = ref('play');
 const isRepeat = ref(false);
+const isPlaying = ref(true);
 
-const videos = videoStreams
-  .filter((v) => v.videoOnly)
-  .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
+const videoUrl = (streams, quality) => {
+  const sortedStreams = streams
+    .filter((s) => s.videoOnly)
+    .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
+  const video =
+    sortedStreams.find((s) => s.videoOnly && s.quality === quality) ??
+    sortedStreams[0];
+  return video.url;
+};
 
-const qualities = [
-  ...new Map(videos.map((v) => [parseInt(v['quality']), v])).values(),
-];
+const audioUrl = (audios) => {
+  const bestAudioQuality = audios.sort(
+    (a, b) => parseInt(b.quality) - parseInt(a.quality)
+  )[0];
+  return bestAudioQuality.url;
+};
 
-const audioFile = audioStreams.sort(
-  (a, b) => parseInt(b.quality) - parseInt(a.quality)
-)[0];
+const qualities = (streams) => {
+  return [...new Map(streams.map((v) => [parseInt(v['quality']), v])).values()];
+};
 
 // Controls
 const handleControlsClick = (type) => {
   switch (type) {
     case 'play':
-      play();
+      togglePlay('play');
       break;
     case 'pause':
-      pause();
+      togglePlay('pause');
       break;
     case 'next':
       router.push(nextVideo.url);
       break;
     case 'mute':
-      mute();
+      toggleMute('mute');
       break;
     case 'unmute':
-      unmute();
+      toggleMute('unmute');
       break;
     case 'settings':
       openSettingOptions();
@@ -155,38 +168,21 @@ const handleControlsClick = (type) => {
   }
 };
 
-const play = () => {
-  playerStatus.value = 'play';
-  audioRef.value.play();
-  videoRef.value?.play();
-  leftOptions['Play'].isShow = false;
-  leftOptions['Pause'].isShow = true;
+const togglePlay = (status) => {
+  playerStatus.value = status;
+  audioRef.value?.[status]();
+  videoRef.value?.[status]();
+  leftOptions['Play'].isShow = status === 'play' ? false : true;
+  leftOptions['Pause'].isShow = status === 'play' ? true : false;
   volume.value = volume.value - 1;
   volume.value = volume.value + 1;
 };
 
-const pause = () => {
-  playerStatus.value = 'pause';
-  audioRef.value.pause();
-  videoRef.value?.pause();
-  leftOptions['Play'].isShow = true;
-  leftOptions['Pause'].isShow = false;
-  volume.value = volume.value - 1;
-  volume.value = volume.value + 1;
-};
-
-const mute = () => {
-  audioRef.value.muted = true;
-  leftOptions['Mute'].isShow = false;
-  leftOptions['Unmute'].isShow = true;
-  volume.value = 0;
-};
-
-const unmute = () => {
-  audioRef.value.muted = false;
-  leftOptions['Mute'].isShow = true;
-  leftOptions['Unmute'].isShow = false;
-  volume.value = parseInt(audioRef.value.volume * 100);
+const toggleMute = (status) => {
+  audioRef.value.muted = status === 'mute' ? true : false;
+  leftOptions['Mute'].isShow = status === 'mute' ? false : true;
+  leftOptions['Unmute'].isShow = status === 'mute' ? true : false;
+  volume.value = status === 'mute' ? 0 : parseInt(audioRef.value.volume * 100);
 };
 
 const openSettingOptions = () => {
@@ -198,7 +194,9 @@ const openSettingOptions = () => {
     .classList.toggle('settings-active');
 };
 
+// Timeline
 const handleTimeUpdate = () => {
+  emit('time-update', { currentTime: Math.round(audioRef.value?.currentTime) });
   playedTime.value = Math.round(audioRef.value?.currentTime);
   if (videoRef.value?.currentTime) {
     if (
@@ -209,8 +207,10 @@ const handleTimeUpdate = () => {
   }
   if (selectedSubtitle.value !== 'off') {
     const currentSub = subtitleCollection.value?.findIndex(
-      (s) => s.startTime <= playedTime.value && s.endTime > playedTime.value
+      (s) =>
+        s.startTime <= playedTime.value + 0.5 && s.endTime > playedTime.value
     );
+
     if (currentSub > -1) {
       subtitleContent.value = subtitleCollection.value[currentSub].text;
     } else {
@@ -219,14 +219,10 @@ const handleTimeUpdate = () => {
   }
 };
 
-// Timeline
 const handleChangeVideoDuration = (time) => {
-  document.querySelector('#player-status').style.opacity = 0;
   timeoutPercent.value = 0;
   clearInterval(videoProgressInterval.value);
-  const isPause = audioRef.value.paused;
   audioRef.value.currentTime = time;
-  if (!isPause) play();
 };
 
 // Volume
@@ -245,12 +241,12 @@ const handleChangeVolume = (selectedVolume) => {
 
 // Video ended
 const handleVideoEnded = () => {
-  pause();
+  togglePlay('pause');
   if (document.pictureInPictureElement) {
     document.exitPictureInPicture();
   }
   if (isRepeat.value) {
-    play();
+    togglePlay('play');
     return;
   }
   document.querySelector('#player-status').style.opacity = 1;
@@ -258,22 +254,26 @@ const handleVideoEnded = () => {
   if (autoNextVideo.value) {
     playerStatus.value = 'next-video';
     videoProgressInterval.value = setInterval(() => {
-      timeoutPercent.value += 20;
-      if (timeoutPercent.value > 100) router.push(nextVideo.url);
-    }, 1000);
+      timeoutPercent.value += 1;
+    }, 50);
+    // if (timeoutPercent.value > 100) {
+    //   router.push(nextVideo.url);
+    //   playerStatus.value = 'play';
+    //   togglePlay('play');
+    // }
   }
 };
 
 // Click video
 const handleClickVideo = () => {
   const isVideoPlaying = !audioRef.value.paused;
-  isVideoPlaying ? pause() : play();
+  isVideoPlaying ? togglePlay('pause') : togglePlay('play');
 };
 
 // Select quality
 const handleSelectQuality = (quality) => {
-  pause();
-  selectedQuality.value = qualities.findIndex((q) => q.quality === quality);
+  selectedQuality.value = quality;
+  videoUrl(videoStreams, quality);
   document
     .querySelector('#setting-controls')
     .classList.remove('settings-active');
@@ -284,9 +284,8 @@ const handleSelectQuality = (quality) => {
 
 // Select video playback rate
 const handleSelectPlaybackRate = (playbackRate) => {
-  audioRef.value.playbackRate = playbackRate;
   videoRef.value.playbackRate = playbackRate;
-  selectedPlaybackRate.value = playbackRate;
+  audioRef.value.playbackRate = playbackRate;
   document
     .querySelector('#setting-controls')
     .classList.remove('settings-active');
@@ -309,18 +308,31 @@ const handleSelectSubtitle = async (sub) => {
   subtitleCollection.value = xmlToSubtitle(await res.text());
 };
 
+const handleAutoPlay = () => {
+  isPlaying.value ? togglePlay('play') : togglePlay('pause');
+  playerStatus.value = isPlaying.value ? 'play' : 'pause';
+};
+
+const handleLoadingMetaData = () => {
+  isPlaying.value = !audioRef.value.paused;
+  togglePlay('pause');
+  playerStatus.value = 'loading';
+};
+
+const handleEventPip = (event) => {
+  if (!document.pictureInPictureElement) return;
+  togglePlay(event);
+};
+
 onMounted(() => {
   audioRef.value.volume = volume.value / 100;
-  selectedQuality.value =
-    qualities.findIndex((q) => q.quality === '720p') < 0
-      ? 0
-      : qualities.findIndex((q) => q.quality === '720p');
+  // Autoplay when exit PIP
   document.addEventListener('leavepictureinpicture', () => {
-    const isPause = videoRef.value.paused;
-    if (!isPause && !videoRef.value.ended) {
+    const isPause = videoRef.value?.paused;
+    if (!isPause && !videoRef.value?.ended) {
       setTimeout(() => {
-        play();
-      }, 0);
+        togglePlay('play');
+      }, 50);
     }
   });
 });
@@ -366,18 +378,25 @@ onBeforeUnmount(() => clearInterval(videoProgressInterval.value));
         ref="videoRef"
         :style="{ height: '100%' }"
         preload="metadata"
-        @ended="handleVideoEnded"
         muted
-        :src="qualities[selectedQuality]?.url"
+        :src="videoUrl(videoStreams, selectedQuality)"
         type="video/*"
+        autoplay
+        @canplay="handleAutoPlay"
+        @waiting="handleLoadingMetaData"
+        @ended="handleVideoEnded"
+        @pause="handleEventPip('pause')"
+        @play="handleEventPip('play')"
       />
     </template>
     <audio
       ref="audioRef"
-      :src="audioFile.url"
+      :src="audioUrl(audioStreams)"
       type="audio/*"
-      @timeupdate="handleTimeUpdate"
       preload="metadata"
+      autoplay
+      @timeupdate="handleTimeUpdate"
+      @waiting="handleLoadingMetaData"
     />
     <n-text
       tag="div"
@@ -400,10 +419,10 @@ onBeforeUnmount(() => clearInterval(videoProgressInterval.value));
         @click="handleClickVideo"
       >
         <template v-if="playerStatus === 'loading'">
-          <n-spin size="large" />
+          <n-spin :size="70" :stroke-width="15" />
         </template>
         <template v-else-if="playerStatus === 'pause'">
-          <n-icon :component="PlayFilledAlt" :size="80" />
+          <n-icon :component="PlayFilledAlt" :size="100" color="#fff" />
         </template>
         <template v-else-if="playerStatus === 'next-video'">
           <n-progress
@@ -505,7 +524,7 @@ onBeforeUnmount(() => clearInterval(videoProgressInterval.value));
             <n-button
               text
               :focusable="false"
-              :type="isRepeat ? 'primary' : ''"
+              :text-color="isRepeat ? '#63e2b7' : '#fff'"
               @click="isRepeat = !isRepeat"
             >
               <n-icon :component="RepeatOne" :size="20" />
@@ -518,162 +537,117 @@ onBeforeUnmount(() => clearInterval(videoProgressInterval.value));
                   :style="{ opacity: option === 'Settings' && 0 }"
                 >
                   <template #trigger>
-                    <n-icon
-                      :component="rightOptions[option].icon"
-                      :size="20"
-                      :style="{ cursor: 'pointer' }"
-                      color="#fff"
+                    <n-button
+                      text
+                      :disabled="onlyAudio"
                       @click="handleControlsClick(option.toLocaleLowerCase())"
-                    />
+                    >
+                      <n-icon
+                        :component="rightOptions[option].icon"
+                        :size="20"
+                        color="#fff"
+                      />
+                    </n-button>
                   </template>
                   {{ option }}
                 </n-tooltip>
               </template>
             </template>
             <!-- Setting options -->
-            <n-card
-              id="setting-controls"
-              size="small"
-              :bordered="false"
-              :style="{
-                position: 'absolute',
-                bottom: '60px',
-                right: '10px',
-                width: 'max-content',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(0,0,0,0.85)',
-                opacity: 0,
-                pointerEvents: 'none',
-                transition: 'opacity 0.2s ease',
-              }"
-            >
-              <n-tabs
-                type="line"
-                animated
+            <template v-if="!onlyAudio">
+              <n-card
+                id="setting-controls"
                 size="small"
-                :tab-style="{
-                  padding: '5px 12px',
-                  color: '#fff',
+                :bordered="false"
+                :style="{
+                  position: 'absolute',
+                  bottom: '60px',
+                  right: '10px',
+                  width: 'max-content',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(0,0,0,0.85)',
+                  opacity: 0,
+                  pointerEvents: 'none',
+                  transition: 'opacity 0.2s ease',
                 }"
               >
-                <n-tab-pane
-                  name="quality"
-                  :tab="
-                    () => h(NIcon, { size: 20 }, { default: () => h(Carbon4K) })
-                  "
+                <n-tabs
+                  type="line"
+                  animated
+                  size="small"
+                  :tab-style="{
+                    padding: '5px 12px',
+                    color: '#fff',
+                  }"
                 >
-                  <n-list
-                    :show-divider="false"
-                    hoverable
-                    clickable
-                    :style="{
-                      backgroundColor: 'transparent',
-                      fontSize: '12px',
-                    }"
+                  <n-tab-pane
+                    name="quality"
+                    :tab="
+                      () =>
+                        h(NIcon, { size: 20 }, { default: () => h(Carbon4K) })
+                    "
                   >
-                    <n-scrollbar :style="{ maxHeight: '250px' }">
-                      <template v-for="(quality, index) in qualities">
-                        <n-list-item :style="{ padding: 0 }">
-                          <n-text
-                            tag="div"
-                            :style="{
-                              padding: '8px',
-                              display: 'flex',
-                              color: '#fff',
-                              alignItems: 'center',
-                              gap: '6px',
-                            }"
-                            @click="handleSelectQuality(quality.quality)"
-                          >
-                            <n-icon
-                              :component="Checkmark"
-                              size="16"
+                    <n-list
+                      :show-divider="false"
+                      hoverable
+                      clickable
+                      :style="{
+                        backgroundColor: 'transparent',
+                        fontSize: '12px',
+                      }"
+                    >
+                      <n-scrollbar :style="{ maxHeight: '250px' }">
+                        <template v-for="quality in qualities(videoStreams)">
+                          <n-list-item :style="{ padding: 0 }">
+                            <n-text
+                              tag="div"
                               :style="{
-                                opacity: index === selectedQuality ? 1 : 0,
+                                padding: '8px',
+                                display: 'flex',
+                                color: '#fff',
+                                alignItems: 'center',
+                                gap: '6px',
                               }"
-                            />
-                            {{ quality.quality }}
-                          </n-text>
-                        </n-list-item>
-                      </template>
-                    </n-scrollbar>
-                  </n-list>
-                </n-tab-pane>
-                <n-tab-pane
-                  name="playback-rate"
-                  :tab="
-                    () =>
-                      h(
-                        NIcon,
-                        { size: 20 },
-                        { default: () => h(EdgeEnhancement02) }
-                      )
-                  "
-                >
-                  <n-list
-                    :show-divider="false"
-                    hoverable
-                    clickable
-                    :style="{
-                      backgroundColor: 'transparent',
-                      fontSize: '12px',
-                    }"
+                              @click="handleSelectQuality(quality.quality)"
+                            >
+                              <n-icon
+                                :component="Checkmark"
+                                size="16"
+                                :style="{
+                                  opacity:
+                                    quality.quality === selectedQuality ? 1 : 0,
+                                }"
+                              />
+                              {{ quality.quality }}
+                            </n-text>
+                          </n-list-item>
+                        </template>
+                      </n-scrollbar>
+                    </n-list>
+                  </n-tab-pane>
+                  <n-tab-pane
+                    name="playback-rate"
+                    :tab="
+                      () =>
+                        h(
+                          NIcon,
+                          { size: 20 },
+                          { default: () => h(EdgeEnhancement02) }
+                        )
+                    "
                   >
-                    <template v-for="playbackRate in [1, 2, 3, 4, 5, 6, 7, 8]">
-                      <n-list-item :style="{ padding: 0 }">
-                        <n-text
-                          tag="div"
-                          :style="{
-                            padding: '8px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            color: '#fff',
-                            gap: '6px',
-                          }"
-                          @click="handleSelectPlaybackRate(0.25 * playbackRate)"
-                        >
-                          <n-icon
-                            :component="Checkmark"
-                            size="16"
-                            :style="{
-                              opacity:
-                                playbackRate * 0.25 === selectedPlaybackRate
-                                  ? 1
-                                  : 0,
-                            }"
-                          />
-                          {{
-                            0.25 * playbackRate === 1
-                              ? 'Normal'
-                              : 0.25 * playbackRate
-                          }}
-                        </n-text>
-                      </n-list-item>
-                    </template>
-                  </n-list>
-                </n-tab-pane>
-                <n-tab-pane
-                  name="captions"
-                  :tab="
-                    () =>
-                      h(
-                        NIcon,
-                        { size: 20 },
-                        { default: () => h(ClosedCaption) }
-                      )
-                  "
-                >
-                  <n-list
-                    :show-divider="false"
-                    hoverable
-                    clickable
-                    :style="{
-                      backgroundColor: 'transparent',
-                      fontSize: '12px',
-                    }"
-                  >
-                    <n-scrollbar :style="{ maxHeight: '250px' }">
-                      <template v-for="sub in subtitles">
+                    <n-list
+                      :show-divider="false"
+                      hoverable
+                      clickable
+                      :style="{
+                        backgroundColor: 'transparent',
+                        fontSize: '12px',
+                      }"
+                    >
+                      <template
+                        v-for="playbackRate in [1, 2, 3, 4, 5, 6, 7, 8]"
+                      >
                         <n-list-item :style="{ padding: 0 }">
                           <n-text
                             tag="div"
@@ -684,55 +658,112 @@ onBeforeUnmount(() => clearInterval(videoProgressInterval.value));
                               color: '#fff',
                               gap: '6px',
                             }"
-                            @click="handleSelectSubtitle(sub)"
+                            @click="
+                              handleSelectPlaybackRate(playbackRate * 0.25)
+                            "
                           >
                             <n-icon
                               :component="Checkmark"
                               size="16"
                               :style="{
                                 opacity:
-                                  selectedSubtitle.code === sub.code &&
-                                  selectedSubtitle.autoGenerated ===
-                                    sub.autoGenerated
+                                  playbackRate * 0.25 === videoRef.playbackRate
                                     ? 1
                                     : 0,
                               }"
                             />
-                            {{ sub.name }}
-                            <template v-if="sub.autoGenerated">
-                              (auto-generated)
-                            </template>
+                            {{
+                              0.25 * playbackRate === 1
+                                ? 'Normal'
+                                : 0.25 * playbackRate
+                            }}
                           </n-text>
                         </n-list-item>
                       </template>
-                      <n-list-item :style="{ padding: 0 }">
-                        <n-text
-                          tag="div"
-                          :style="{
-                            padding: '8px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            color: '#fff',
-                            gap: '6px',
-                          }"
-                          @click="handleSelectSubtitle('off')"
-                        >
-                          <n-icon
-                            :component="Checkmark"
-                            size="16"
+                    </n-list>
+                  </n-tab-pane>
+                  <n-tab-pane
+                    name="captions"
+                    :tab="
+                      () =>
+                        h(
+                          NIcon,
+                          { size: 20 },
+                          { default: () => h(ClosedCaption) }
+                        )
+                    "
+                  >
+                    <n-list
+                      :show-divider="false"
+                      hoverable
+                      clickable
+                      :style="{
+                        backgroundColor: 'transparent',
+                        fontSize: '12px',
+                      }"
+                    >
+                      <n-scrollbar :style="{ maxHeight: '250px' }">
+                        <template v-for="sub in subtitles">
+                          <n-list-item :style="{ padding: 0 }">
+                            <n-text
+                              tag="div"
+                              :style="{
+                                padding: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                color: '#fff',
+                                gap: '6px',
+                              }"
+                              @click="handleSelectSubtitle(sub)"
+                            >
+                              <n-icon
+                                :component="Checkmark"
+                                size="16"
+                                :style="{
+                                  opacity:
+                                    selectedSubtitle.code === sub.code &&
+                                    selectedSubtitle.autoGenerated ===
+                                      sub.autoGenerated
+                                      ? 1
+                                      : 0,
+                                }"
+                              />
+                              {{ sub.name }}
+                              <template v-if="sub.autoGenerated">
+                                (auto-generated)
+                              </template>
+                            </n-text>
+                          </n-list-item>
+                        </template>
+                        <n-list-item :style="{ padding: 0 }">
+                          <n-text
+                            tag="div"
                             :style="{
-                              opacity: selectedSubtitle === 'off' ? 1 : 0,
+                              padding: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              color: '#fff',
+                              gap: '6px',
                             }"
-                            @click=""
-                          />
-                          Off
-                        </n-text>
-                      </n-list-item>
-                    </n-scrollbar>
-                  </n-list>
-                </n-tab-pane>
-              </n-tabs>
-            </n-card>
+                            @click="handleSelectSubtitle('off')"
+                          >
+                            <n-icon
+                              :component="Checkmark"
+                              size="16"
+                              :style="{
+                                opacity: selectedSubtitle === 'off' ? 1 : 0,
+                              }"
+                              @click=""
+                            />
+                            Off
+                          </n-text>
+                        </n-list-item>
+                      </n-scrollbar>
+                    </n-list>
+                  </n-tab-pane>
+                </n-tabs>
+              </n-card>
+            </template>
           </n-text>
         </n-space>
       </n-text>

@@ -14,17 +14,23 @@ import {
 import { Repeat, CaretRight, Movement } from '@vicons/carbon';
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { convertTimer } from '../../utils/convert-timer';
 import { getNextData } from '../../utils/get-next-data';
 
-const { playlistId } = defineProps(['playlistId']);
-const route = useRoute();
+const { playlistId, currentVideoIndex } = defineProps([
+  'playlistId',
+  'currentVideoIndex',
+]);
+
 const router = useRouter();
 const playlistDetail = ref();
-const currentVideoIndex = ref();
 const isRepeat = ref(false);
 const isRandom = ref(false);
+
+const handleSelectVideo = ({ index, url }) => {
+  router.push(`${url}&list=${playlistId}&index=${index + 1}`);
+};
 
 onMounted(async () => {
   const { data } = await axios.get(`/playlists/${playlistId} `);
@@ -44,7 +50,6 @@ onMounted(async () => {
     // nextPageData = res.nextpage;
     // }
   }
-  currentVideoIndex.value = parseInt(route.query.index ?? 1);
 });
 </script>
 
@@ -52,8 +57,12 @@ onMounted(async () => {
   <n-card
     :title="playlistDetail?.name"
     :bordered="false"
-    :style="{ borderRadius: '8px', marginBottom: '28px' }"
+    :style="{
+      borderRadius: '8px',
+      marginBottom: '28px',
+    }"
     embedded
+    id="playlist-card"
   >
     <n-space :style="{ marginBottom: '6px' }">
       <n-button
@@ -73,10 +82,13 @@ onMounted(async () => {
         <n-icon :component="Movement" size="20" />
       </n-button>
     </n-space>
-    <n-collapse arrow-placement="right">
-      <n-collapse-item :title="playlistDetail?.uploader">
+    <n-collapse
+      arrow-placement="right"
+      default-expanded-names="playlist-videos"
+    >
+      <n-collapse-item :title="playlistDetail?.uploader" name="playlist-videos">
         <template #header-extra>
-          {{ `${currentVideoIndex}/${playlistDetail?.relatedStreams.length}` }}
+          {{ `${currentVideoIndex}/${playlistDetail?.videos}` }}
         </template>
         <template #arrow> <n-icon :component="CaretRight" /> </template>
         <n-scrollbar :style="{ maxHeight: '320px' }">
@@ -88,23 +100,21 @@ onMounted(async () => {
                 :wrap="false"
                 :style="{
                   cursor: 'pointer',
+                  borderRadius: '4px',
                   padding:
                     currentVideoIndex === index + 1 ? '8px 6px' : '0 6px',
                   backgroundColor:
-                    currentVideoIndex === index + 1 ? '#333' : '',
+                    currentVideoIndex === index + 1
+                      ? 'rgba(99, 226, 183, 0.25)'
+                      : 'transparent',
                 }"
-                @click="
-                  router.push(
-                    `${video.url}&list=${playlistId}&index=${index + 1}`
-                  )
-                "
+                @click="handleSelectVideo({ index, url: video.url })"
               >
                 <n-text
                   :style="{
                     display: 'block',
                     width: 'max-content',
                     fontSize: '12px',
-                    color: currentVideoIndex === index + 1 && '#fff',
                   }"
                 >
                   {{ index + 1 }}
@@ -138,12 +148,7 @@ onMounted(async () => {
                     {{ convertTimer(video.duration) }}
                   </n-tag>
                 </n-text>
-                <n-text
-                  strong
-                  :style="{
-                    color: currentVideoIndex === index + 1 && '#fff',
-                  }"
-                >
+                <n-text strong>
                   <n-ellipsis :line-clamp="2" :tooltip="false">
                     {{ video.title }}
                   </n-ellipsis>
