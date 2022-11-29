@@ -55,7 +55,7 @@ watch(route, ({ params }) => {
 </script>
 
 <template>
-  <n-layout>
+  <n-layout :style="{ minHeight: '100vh' }">
     <n-image :src="channelDetail.bannerUrl" width="99999" preview-disabled />
     <n-layout-content :style="{ maxWidth: '1180px', margin: 'auto' }">
       <n-space

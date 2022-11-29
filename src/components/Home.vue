@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 import {
   NGrid,
@@ -15,6 +15,7 @@ import {
   NText,
   useLoadingBar,
   NTooltip,
+  NSpin,
 } from 'naive-ui';
 import { CheckmarkFilled } from '@vicons/carbon';
 import { convertTimer } from '../utils/convert-timer';
@@ -24,6 +25,39 @@ import { useRouter } from 'vue-router';
 const videos = ref(null);
 const loadingBar = useLoadingBar();
 const router = useRouter();
+const isLoading = ref(false);
+const fetchedVideos = ref([]);
+
+const nextTrendingData = async () => {
+  const endOfPage =
+    window.scrollY + window.innerHeight >= document.body.offsetHeight;
+  if (!endOfPage || isLoading.value) return;
+  try {
+    isLoading.value = true;
+    let selectedVideo = null;
+    do {
+      selectedVideo =
+        videos.value[Math.floor(Math.random() * videos.value.length)];
+    } while (fetchedVideos.value.includes(selectedVideo.url));
+    fetchedVideos.value.push(selectedVideo.url);
+    const { data } = await axios.get(
+      `/streams/${selectedVideo.url.split('=')[1]}`
+    );
+    const removeShorts = data.relatedStreams.filter(
+      (s) => s.type === 'stream' && !s.isShort
+    );
+    const removeDuplicateVideos = [
+      ...new Map(
+        [...videos.value, ...removeShorts].map((v) => [v['url'], v])
+      ).values(),
+    ];
+    videos.value = removeDuplicateVideos;
+  } catch (err) {
+    console.error(err);
+  } finally {
+    isLoading.value = false;
+  }
+};
 
 onMounted(async () => {
   try {
@@ -31,17 +65,23 @@ onMounted(async () => {
     const { data } = await axios.get('/trending?region=VN');
     videos.value = data.filter((v) => !v.isShort);
     document.title = 'VueTube';
+    window.addEventListener('scroll', nextTrendingData);
     loadingBar.finish();
   } catch (err) {
     console.error(err);
     loadingBar.error();
   }
 });
+
+onBeforeUnmount(() => window.removeEventListener('scroll', nextTrendingData));
 </script>
 
 <template>
   <n-layout :style="{ padding: '25px', minHeight: '100vh' }">
-    <n-layout-content :style="{ maxWidth: '1520px', margin: 'auto' }">
+    <n-layout-content
+      :style="{ maxWidth: '1520px', margin: 'auto' }"
+      :native-scrollbar="false"
+    >
       <n-grid :cols="5" :x-gap="18" :y-gap="25">
         <n-gi v-for="video in videos" :key="video.url">
           <n-text tag="div" :style="{ cursor: 'pointer' }">
@@ -82,6 +122,7 @@ onMounted(async () => {
                 <n-avatar
                   :src="video.uploaderAvatar"
                   round
+                  lazy
                   object-fit="cover"
                   @click="router.push(video.uploaderUrl)"
                 />
@@ -101,7 +142,11 @@ onMounted(async () => {
                   </n-ellipsis>
                 </n-text>
                 <n-text
-                  :style="{ display: 'flex', alignItems: 'center', gap: '6px' }"
+                  :style="{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }"
                   @click="router.push(video.uploaderUrl)"
                 >
                   <n-h6 :style="{ fontSize: '14px', margin: 0 }">
@@ -132,6 +177,11 @@ onMounted(async () => {
           </n-text>
         </n-gi>
       </n-grid>
+      <template v-if="isLoading">
+        <n-space align="center" justify="center" :style="{ marginTop: '40px' }">
+          <n-spin :size="36" />
+        </n-space>
+      </template>
     </n-layout-content>
   </n-layout>
 </template>

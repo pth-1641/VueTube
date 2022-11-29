@@ -10,12 +10,7 @@ const router = useRouter();
 </script>
 
 <template>
-  <n-space
-    :wrap="false"
-    :size="16"
-    :style="{ cursor: 'pointer' }"
-    @click="router.push(video.url)"
-  >
+  <n-space :wrap="false" :size="16" :style="{ cursor: 'pointer' }">
     <n-text
       tag="div"
       :style="{
@@ -25,6 +20,7 @@ const router = useRouter();
         borderRadius: '8px',
         overflow: 'hidden',
       }"
+      @click="router.push(video.url)"
     >
       <n-image :src="video.thumbnail" preview-disabled width="360" />
       <template v-if="video.duration < 0">
@@ -62,24 +58,25 @@ const router = useRouter();
       </template>
     </n-text>
     <n-space vertical>
-      <n-h3 :style="{ marginBottom: 0 }">
+      <n-h3 :style="{ marginBottom: 0 }" @click="router.push(video.url)">
         {{ video.title }}
       </n-h3>
       <template v-if="video.duration < 0">
         <n-text
           strong
           :style="{ display: 'flex', alignItems: 'center', gap: '8px' }"
+          @click="router.push(video.url)"
         >
           <n-icon :component="ViewFilled" size="20" />
           {{ formatViews(video.views) }} watching
         </n-text>
       </template>
       <template v-else>
-        <n-text>
+        <n-text @click="router.push(video.url)">
           {{ formatViews(video.views) }} views • {{ video.uploadedDate }}
         </n-text>
       </template>
-      <n-space align="center">
+      <n-space align="center" @click="router.push(video.uploaderUrl)">
         <n-avatar
           :src="video.uploaderAvatar"
           round
@@ -98,7 +95,9 @@ const router = useRouter();
           </template>
         </n-space>
       </n-space>
-      <n-text italic>{{ video.shortDescription }}</n-text>
+      <n-text italic @click="router.push(video.url)">
+        {{ video.shortDescription }}
+      </n-text>
     </n-space>
   </n-space>
 </template>
