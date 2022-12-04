@@ -26,11 +26,14 @@ const startTimeChapter = ref(0);
 
 const getVideoDetail = async (id) => {
   try {
+    loadingBar.start();
     const { data } = await axios.get(`/streams/${id}`);
     videoDetail.value = data;
     document.title = data.title;
+    loadingBar.finish();
   } catch (err) {
     console.error(err);
+    loadingBar.error();
   }
 };
 

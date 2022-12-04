@@ -3,7 +3,7 @@ import { onMounted, ref, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 import {
   NGrid,
-  NGi,
+  NGridItem,
   NLayoutContent,
   NLayout,
   NSpace,
@@ -83,7 +83,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', nextTrendingData));
       :native-scrollbar="false"
     >
       <n-grid :cols="5" :x-gap="18" :y-gap="25">
-        <n-gi v-for="video in videos" :key="video.url">
+        <n-grid-item v-for="video in videos" :key="video.url">
           <n-text tag="div" :style="{ cursor: 'pointer' }">
             <n-text
               tag="div"
@@ -175,7 +175,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', nextTrendingData));
               </n-space>
             </n-space>
           </n-text>
-        </n-gi>
+        </n-grid-item>
       </n-grid>
       <template v-if="isLoading">
         <n-space align="center" justify="center" :style="{ marginTop: '40px' }">

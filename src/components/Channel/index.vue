@@ -12,6 +12,7 @@ import {
   NTabs,
   NTabPane,
   useLoadingBar,
+  useMessage,
 } from 'naive-ui';
 import { CheckmarkFilled } from '@vicons/carbon';
 import { useRoute } from 'vue-router';
@@ -24,6 +25,7 @@ import Playlists from './Playlists.vue';
 import RelatedChannels from './RelatedChannels.vue';
 import Shorts from './Shorts.vue';
 import Livestreams from './Livestreams.vue';
+import { useAuth } from '../../stores/AuthProvider';
 
 const route = useRoute();
 const channelId = ref(route.params.id);
@@ -31,6 +33,9 @@ const channelDetail = ref({});
 const loadingBar = useLoadingBar();
 const aboutContent = ref();
 const selectedTab = ref('');
+const isSubscribe = ref(false);
+const authProvider = useAuth();
+const message = useMessage();
 
 const getChannelData = async (id) => {
   try {
@@ -47,10 +52,44 @@ const getChannelData = async (id) => {
   }
 };
 
-onMounted(() => getChannelData(channelId.value));
+const checkSubscribe = () => {
+  isSubscribe.value =
+    authProvider.subscribedChannels.findIndex(
+      (c) => c.channel_id === channelId.value
+    ) > -1;
+};
+
+const handleSubscribe = async () => {
+  const uid = authProvider.userId;
+  const { error } = await authProvider.subscribeChannel({
+    uid,
+    channelId: channelId.value,
+  });
+  if (error) message.error(error.message);
+};
+
+const handleUnsubscribe = async () => {
+  const listChannel = authProvider.subscribedChannels;
+  const index = listChannel.findIndex((c) => c.channel_id === channelId.value);
+  const { error } = await authProvider.unsubscribeChannel(
+    listChannel[index].id
+  );
+  if (error) message.error(error.message);
+};
+
+onMounted(() => {
+  getChannelData(channelId.value);
+  checkSubscribe();
+});
+
+watch(authProvider, () => {
+  checkSubscribe();
+});
+
 watch(route, ({ params }) => {
   getChannelData(params.id);
   channelId.value = params.id;
+  checkSubscribe();
 });
 </script>
 
@@ -87,9 +126,20 @@ watch(route, ({ params }) => {
             </template>
           </n-text>
         </n-space>
-        <n-button type="primary" :style="{ fontWeight: 600 }"
-          >SUBSCRIBE</n-button
-        >
+        <template v-if="isSubscribe">
+          <n-button :style="{ fontWeight: 600 }" @click="handleUnsubscribe">
+            SUBSCRIBED
+          </n-button>
+        </template>
+        <template v-else>
+          <n-button
+            type="success"
+            :style="{ fontWeight: 600 }"
+            @click="handleSubscribe"
+          >
+            SUBSCRIBE
+          </n-button>
+        </template>
       </n-space>
       <n-tabs
         type="line"

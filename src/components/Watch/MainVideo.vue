@@ -95,6 +95,8 @@ const getUpdateTime = ({ currentTime }) => {
     :onlyAudio="onlyAudio"
     :subtitles="video.subtitles"
     :startTimeChapter="startTimeChapter"
+    :isLive="video.livestream"
+    :hls="video.hls"
     @time-update="getUpdateTime"
   />
   <n-h3 :style="{ margin: 0, fontSize: '19px', marginTop: '6px' }">

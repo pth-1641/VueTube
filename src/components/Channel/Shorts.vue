@@ -1,15 +1,35 @@
 <script setup>
-import { NGrid, NGi, NEllipsis, NSpin, NSpace, NModal, NText } from 'naive-ui';
+import {
+  NGrid,
+  NGi,
+  NEllipsis,
+  NSpin,
+  NSpace,
+  NModal,
+  NText,
+  NCarousel,
+  NIcon,
+} from 'naive-ui';
+import {
+  PauseFilled,
+  VolumeUpFilled,
+  PlayFilledAlt,
+  VolumeMuteFilled,
+} from '@vicons/carbon';
 import axios from 'axios';
 import { onMounted, ref, onBeforeUnmount } from 'vue';
 import { getNextData } from '../../utils/get-next-data';
 
 const { data, channelId } = defineProps(['data', 'channelId']);
 const shorts = ref();
-const showShortPlayer = ref(false);
+const shortVideo = ref();
+const showShortModal = ref(false);
 const selectedShort = ref();
 const nextpageData = ref();
 const isLoading = ref(false);
+const isLoadingShort = ref(true);
+const isPlaying = ref(true);
+const isMuted = ref(false);
 
 const getNextShortVideos = async () => {
   const endOfPage =
@@ -32,6 +52,28 @@ const getNextShortVideos = async () => {
   }
 };
 
+const handleSelectedShort = async (url) => {
+  showShortModal.value = !showShortModal.value;
+  const shortId = url.split('=')[1];
+  const { data } = await axios.get(`/streams/${shortId}`);
+  const audioVideo = data.videoStreams.filter((v) => !v.videoOnly);
+  selectedShort.value = audioVideo.sort(
+    (a, b) => parseInt(b.quality) - parseInt(a.quality)
+  )[0]?.url;
+};
+
+const handleResetOnClose = () => {
+  isLoadingShort.value = true;
+  selectedShort.value = null;
+  isPlaying.value = true;
+};
+
+const togglePlay = () => {
+  if (shortVideo.value?.currentTime === 0) return;
+  shortVideo.value.paused ? shortVideo.value.play() : shortVideo.value.pause();
+  isPlaying.value = !isPlaying.value;
+};
+
 onMounted(async () => {
   try {
     const res = await axios.get(`/channels/tabs?data=${data}`);
@@ -42,11 +84,6 @@ onMounted(async () => {
     console.error(err);
   }
 });
-
-const handleShowShort = (url) => {
-  selectedShort.value = url.split('=')[1];
-  showShortPlayer.value = !showShortPlayer.value;
-};
 
 onBeforeUnmount(() => window.removeEventListener('scroll', getNextShortVideos));
 </script>
@@ -67,7 +104,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', getNextShortVideos));
           flexDirection: 'column',
           cursor: 'pointer',
         }"
-        @click="handleShowShort(short.url)"
+        @click="handleSelectedShort(short.url)"
       >
         <n-text
           tag="div"
@@ -97,17 +134,76 @@ onBeforeUnmount(() => window.removeEventListener('scroll', getNextShortVideos));
       </template>
     </n-grid>
   </template>
-  <n-modal v-model:show="showShortPlayer" transform-origin="center" id="modal">
-    <iframe
-      :src="`https://www.youtube-nocookie.com/embed/${selectedShort}?autoplay=1&fs=0`"
-      frameborder="0"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  <n-modal
+    v-model:show="showShortModal"
+    transform-origin="center"
+    :on-after-leave="handleResetOnClose"
+  >
+    <n-text
+      tag="div"
       :style="{
         height: '90vh',
         aspectRatio: '9/16',
         borderRadius: '8px',
+        overflow: 'hidden',
         backgroundColor: '#333',
+        position: 'relative',
       }"
-    />
+    >
+      <n-space
+        :style="{
+          position: 'absolute',
+          top: '10px',
+          left: 0,
+          right: 0,
+          width: '90%',
+          margin: '0 auto',
+          zIndex: 1,
+        }"
+        justify="space-between"
+      >
+        <n-icon
+          :component="isPlaying ? PauseFilled : PlayFilledAlt"
+          :size="22"
+          color="#fff"
+          :style="{ cursor: 'pointer' }"
+          @click="togglePlay"
+        />
+        <n-icon
+          :component="isMuted ? VolumeMuteFilled : VolumeUpFilled"
+          :size="22"
+          color="#fff"
+          :style="{ cursor: 'pointer' }"
+          @click="isMuted = !isMuted"
+        />
+      </n-space>
+      <n-text
+        tag="div"
+        :style="{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }"
+        @click="togglePlay"
+      >
+        <template v-if="isLoadingShort">
+          <n-spin :size="50" />
+        </template>
+        <video
+          :style="{ width: isLoadingShort ? 0 : '100%' }"
+          type="video/*"
+          ref="shortVideo"
+          loop
+          autoplay
+          preload="metadata"
+          :muted="isMuted"
+          :src="selectedShort"
+          @canplay="isLoadingShort = false"
+          @waiting="isLoadingShort = true"
+        />
+      </n-text>
+    </n-text>
   </n-modal>
 </template>

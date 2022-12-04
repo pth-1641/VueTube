@@ -1,13 +1,55 @@
 <script setup>
-import { NSpace, NH3, NText, NAvatar, NIcon, NButton } from 'naive-ui';
+import {
+  NSpace,
+  NH3,
+  NText,
+  NAvatar,
+  NIcon,
+  NButton,
+  useMessage,
+} from 'naive-ui';
 import { CheckmarkFilled } from '@vicons/carbon';
 import { formatViews, formatCommaViews } from '../../utils/format-view-count';
-import { ref } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useAuth } from '../../stores/AuthProvider';
 
 const { channel } = defineProps(['channel']);
-const isSubscribe = ref(false);
+const authProvider = useAuth();
 const router = useRouter();
+const message = useMessage();
+const isSubscribe = ref(false);
+const channelId = channel.url.split('/')[2];
+
+const handleSubscribe = async () => {
+  const uid = authProvider.userId;
+  const { error } = await authProvider.subscribeChannel({ uid, channelId });
+  if (error) message.error(error.message);
+};
+
+const handleUnsubscribe = async () => {
+  const listChannel = authProvider.subscribedChannels;
+  const index = listChannel.findIndex((c) => c.channel_id === channelId);
+  const { error } = await authProvider.unsubscribeChannel(
+    listChannel[index].id
+  );
+  if (error) message.error(error.message);
+};
+
+const checkSubscribe = () => {
+  isSubscribe.value =
+    authProvider.subscribedChannels.findIndex(
+      (c) => c.channel_id === channelId
+    ) > -1;
+};
+
+onMounted(() => {
+  checkSubscribe();
+});
+
+watch(authProvider, () => {
+  checkSubscribe();
+});
 </script>
 
 <template>
@@ -16,7 +58,7 @@ const router = useRouter();
     :style="{
       display: 'flex',
       alignItems: 'center',
-      gap: '16px',
+      gap: '30px',
       padding: '30px 0',
       cursor: 'pointer',
     }"
@@ -56,17 +98,16 @@ const router = useRouter();
 
       <n-text italic>{{ channel.description }}</n-text>
     </n-space>
-
     <template v-if="isSubscribe">
-      <n-button :style="{ fontWeight: 600 }" @click="isSubscribe = false"
-        >SUBSCRIBED</n-button
-      >
+      <n-button :style="{ fontWeight: 600 }" @click="handleUnsubscribe">
+        SUBSCRIBED
+      </n-button>
     </template>
     <template v-else>
       <n-button
         type="success"
         :style="{ fontWeight: 600 }"
-        @click="isSubscribe = true"
+        @click="handleSubscribe"
       >
         SUBSCRIBE
       </n-button>

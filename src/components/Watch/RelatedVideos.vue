@@ -1,6 +1,15 @@
 <script setup>
-import { NSpace, NText, NIcon, NTag, NEllipsis, NImage } from 'naive-ui';
+import {
+  NSpace,
+  NText,
+  NIcon,
+  NTag,
+  NEllipsis,
+  NButton,
+  NSpin,
+} from 'naive-ui';
 import { useRouter, useRoute } from 'vue-router';
+import { ref } from 'vue';
 import { formatViews } from '../../utils/format-view-count';
 import {
   CheckmarkFilled,
@@ -9,13 +18,45 @@ import {
   ConnectionSignal,
 } from '@vicons/carbon';
 import { convertTimer } from '../../utils/convert-timer';
+import axios from 'axios';
 
+let { relatedVideos } = defineProps(['relatedVideos']);
 const { list } = useRoute().query;
 const router = useRouter();
-const { relatedVideos } = defineProps(['relatedVideos']);
+const isLoading = ref(false);
+const fetchedVideos = ref([]);
 
 const handleRedirectPlaylist = (url) => {
   router.push(url.replace('playnext', 'index'));
+};
+
+const handleLoadMoreRelatedVideos = async (currentRelatedVideos) => {
+  // try {
+  //   isLoading.value = true;
+  //   let selectedVideo = null;
+  //   do {
+  //     selectedVideo =
+  //       currentRelatedVideos[
+  //         Math.floor(Math.random() * currentRelatedVideos.length)
+  //       ];
+  //   } while (fetchedVideos.value.includes(selectedVideo.url));
+  //   fetchedVideos.value.push(selectedVideo.url);
+  //   const { data } = await axios.get(
+  //     `/streams/${selectedVideo.url.split('=')[1]}`
+  //   );
+  //   const removeShorts = data.relatedStreams.filter((s) => !s.isShort);
+  //   const removeDuplicateVideos = [
+  //     ...new Map(
+  //       [...currentRelatedVideos, ...removeShorts].map((v) => [v['url'], v])
+  //     ).values(),
+  //   ];
+  //   relatedVideos = removeDuplicateVideos;
+  // } catch (err) {
+  //   console.error(err);
+  // } finally {
+  //   isLoading.value = false;
+  // }
+  console.log(relatedVideos);
 };
 </script>
 
@@ -106,12 +147,24 @@ const handleRedirectPlaylist = (url) => {
           </n-ellipsis>
           <n-text
             depth="3"
-            :style="{ display: 'flex', alignItems: 'center', gap: '6px' }"
-            strong
+            :style="{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px',
+            }"
           >
-            {{ video.uploaderName }}
+            <abbr
+              :title="video.uploaderName"
+              :style="{ textDecoration: 'none' }"
+            >
+              {{ video.uploaderName }}
+            </abbr>
             <template v-if="video.uploaderVerified">
-              <n-icon :component="CheckmarkFilled" />
+              <n-icon
+                :component="CheckmarkFilled"
+                :style="{ marginBottom: '4px' }"
+              />
             </template>
           </n-text>
           <n-text
@@ -134,6 +187,22 @@ const handleRedirectPlaylist = (url) => {
             </template>
           </n-text>
         </n-space>
+      </template>
+    </n-space>
+    <n-space align="center" justify="center" :style="{ marginTop: '12px' }">
+      <template v-if="isLoading">
+        <n-spin />
+      </template>
+      <template v-else>
+        <n-button
+          round
+          strong
+          secondary
+          type="success"
+          @click="handleLoadMoreRelatedVideos(relatedVideos)"
+        >
+          Load more
+        </n-button>
       </template>
     </n-space>
   </n-space>

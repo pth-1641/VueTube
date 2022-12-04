@@ -47,6 +47,8 @@ const {
   onlyAudio,
   subtitles,
   startTimeChapter,
+  isLive,
+  hls,
 } = defineProps([
   'audioStreams',
   'videoStreams',
@@ -56,6 +58,8 @@ const {
   'onlyAudio',
   'subtitles',
   'startTimeChapter',
+  'isLive',
+  'hls',
 ]);
 
 const emit = defineEmits(['time-update']);
@@ -122,14 +126,14 @@ const videoUrl = (streams, quality) => {
   const video =
     sortedStreams.find((s) => s.videoOnly && s.quality === quality) ??
     sortedStreams[0];
-  return video.url;
+  return video?.url ?? hls;
 };
 
 const audioUrl = (audios) => {
   const bestAudioQuality = audios.sort(
     (a, b) => parseInt(b.quality) - parseInt(a.quality)
   )[0];
-  return bestAudioQuality.url;
+  return bestAudioQuality?.url;
 };
 
 const qualities = (streams) => {
@@ -337,7 +341,12 @@ onMounted(() => {
   });
 });
 
-onBeforeUnmount(() => clearInterval(videoProgressInterval.value));
+onBeforeUnmount(() => {
+  clearInterval(videoProgressInterval.value);
+  if (document.pictureInPictureElement) {
+    document.exitPictureInPicture();
+  }
+});
 </script>
 
 <template>

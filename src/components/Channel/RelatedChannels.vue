@@ -10,6 +10,7 @@ import {
   NH6,
   NGrid,
   NGi,
+  useMessage,
 } from 'naive-ui';
 import { CheckmarkFilled } from '@vicons/carbon';
 import axios from 'axios';
@@ -17,12 +18,15 @@ import { onMounted, ref, onBeforeUnmount } from 'vue';
 import { formatViews } from '../../utils/format-view-count';
 import { useRouter } from 'vue-router';
 import { getNextData } from '../../utils/get-next-data';
+import { useAuth } from '../../stores/AuthProvider';
 
 const { data, channelId } = defineProps(['data', 'channelId']);
 const router = useRouter();
 const channels = ref();
 const nextpageData = ref();
 const isLoading = ref(false);
+const authProvider = useAuth();
+const message = useMessage();
 
 const getNextChannels = async () => {
   const endOfPage =
@@ -45,11 +49,38 @@ const getNextChannels = async () => {
   }
 };
 
+const checkSubscribe = (channelId) => {
+  return (
+    authProvider.subscribedChannels.findIndex(
+      (c) => c.channel_id === channelId
+    ) > -1
+  );
+};
+
+const handleSubscribe = async (channelId) => {
+  const uid = authProvider.userId;
+  const { error } = await authProvider.subscribeChannel({
+    uid,
+    channelId: channelId,
+  });
+  if (error) message.error(error.message);
+};
+
+const handleUnsubscribe = async (channelId) => {
+  const listChannel = authProvider.subscribedChannels;
+  const index = listChannel.findIndex((c) => c.channel_id === channelId);
+  const { error } = await authProvider.unsubscribeChannel(
+    listChannel[index].id
+  );
+  if (error) message.error(error.message);
+};
+
 onMounted(async () => {
   try {
     const res = await axios.get(`/channels/tabs?data=${data}`);
     channels.value = res.data.content;
     nextpageData.value = res.data.nextpage;
+    checkSubscribe();
   } catch (err) {
     console.error(err);
   }
@@ -70,12 +101,16 @@ onBeforeUnmount(() => window.removeEventListener('scroll', getNextChannels));
         <n-gi
           v-for="channel in channels"
           :key="channel.url"
-          @click="router.push(channel.url)"
           :style="{ cursor: 'pointer' }"
         >
           <n-space :size="0" vertical justify="center" align="center">
-            <n-avatar :src="channel.thumbnail" :size="56" round />
-            <n-space align="center" :size="6">
+            <n-avatar
+              :src="channel.thumbnail"
+              :size="56"
+              round
+              @click="router.push(channel.url)"
+            />
+            <n-space align="center" :size="6" @click="router.push(channel.url)">
               <n-h6
                 :style="{
                   fontSize: '14px',
@@ -92,17 +127,37 @@ onBeforeUnmount(() => window.removeEventListener('scroll', getNextChannels));
             </n-space>
             <n-text
               depth="3"
-              :style="{ opacity: channel.subscribers > 0 ? 1 : 0 }"
+              :style="{
+                opacity: channel.subscribers > 0 ? 1 : 0,
+                fontSize: '12px',
+              }"
+              @click="router.push(channel.url)"
             >
               {{ formatViews(channel.subscribers) }} subscribers
             </n-text>
-            <n-button
-              size="small"
-              round
-              type="primary"
-              :style="{ marginTop: '6px' }"
-              >Subscribe</n-button
-            >
+            <template v-if="checkSubscribe(channel.url.split('/')[2])">
+              <n-button
+                size="small"
+                round
+                ghost
+                type="primary"
+                :style="{ marginTop: '6px' }"
+                @click="handleUnsubscribe(channel.url.split('/')[2])"
+              >
+                Subscribed
+              </n-button>
+            </template>
+            <template v-else>
+              <n-button
+                size="small"
+                round
+                type="primary"
+                :style="{ marginTop: '6px' }"
+                @click="handleSubscribe(channel.url.split('/')[2])"
+              >
+                Subscribe
+              </n-button>
+            </template>
           </n-space>
         </n-gi>
         <template v-if="isLoading">

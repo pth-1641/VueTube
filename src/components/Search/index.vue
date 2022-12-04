@@ -85,6 +85,7 @@ const nextSearchResult = async () => {
 onMounted(() => {
   getData(route.query.q);
   window.addEventListener('scroll', nextSearchResult);
+  window.scrollTo(0, 0);
 });
 
 onBeforeUnmount(() => window.removeEventListener('scroll', nextSearchResult));

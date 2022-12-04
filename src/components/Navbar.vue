@@ -32,23 +32,26 @@ import {
   ThumbsUp,
   Time,
 } from '@vicons/carbon';
-import { ref, h, onMounted } from 'vue';
+import { ref, h, onMounted, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import axios from 'axios';
 import { useRouter } from 'vue-router';
 import { supabase } from '../supabase';
 import VueLogo from '../assets/vue.svg';
+import { useAuth } from '../stores/AuthProvider';
 
 const isDark = localStorage.theme === 'dark';
 const emit = defineEmits(['toggle-theme']);
 const router = useRouter();
 const queryString = ref('');
-const user = ref();
 const inputRef = ref();
 const isShowAccount = ref(false);
 const suggestOptions = ref([]);
 const drawerActive = ref(false);
 const isShowSuggests = ref(false);
+const authProvider = useAuth();
+const user = ref();
+const subscribedChannels = ref([]);
 
 const handleQuerySuggests = (query) => {
   isShowSuggests.value = true;
@@ -69,10 +72,8 @@ const handleSignInWithGoogle = async () => {
 };
 
 const handleSignOut = async () => {
-  const { error } = await supabase.auth.signOut();
-  if (!error) {
-    user.value = null;
-  }
+  await supabase.auth.signOut();
+  authProvider.logOut();
 };
 
 const handleRedirectSearch = (suggest) => {
@@ -108,18 +109,36 @@ const drawerOptions = [
   },
 ];
 
+const getChannelInfo = async (listChannelId) => {
+  subscribedChannels.value = await Promise.all(
+    listChannelId.map(async (c) => {
+      const { data } = await axios.get(`/channel/${c.channel_id}`);
+      return data;
+    })
+  );
+};
+
 onMounted(async () => {
-  const { data } = await supabase.auth.getUser();
-  user.value = data.user;
+  user.value = await authProvider.getUser();
+  await authProvider.getSubscribedChannels();
+  getChannelInfo(authProvider.subscribedChannels);
+});
+
+watch(authProvider, ({ subscribedChannels }) => {
+  getChannelInfo(subscribedChannels);
 });
 </script>
 
 <template>
   <n-layout-header bordered :style="{ position: 'fixed', zIndex: 99 }">
-    <n-space
-      :style="{ padding: '10px 32px' }"
-      align="center"
-      justify="space-between"
+    <n-text
+      :style="{
+        padding: '10px 32px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '24px',
+      }"
     >
       <n-space>
         <n-button
@@ -138,6 +157,7 @@ onMounted(async () => {
           :size="0"
           @click="router.push('/')"
           :style="{ cursor: 'pointer' }"
+          class="header-logo"
         >
           <n-avatar
             :src="VueLogo"
@@ -150,10 +170,14 @@ onMounted(async () => {
         </n-space>
       </n-space>
       <n-form
-        :style="{ position: 'relative' }"
+        :style="{
+          flex: 1,
+          display: 'flex',
+          justifyContent: 'center',
+        }"
         @submit.prevent="handleRedirectSearch(queryString)"
       >
-        <n-input-group>
+        <n-input-group :style="{ maxWidth: '360px', position: 'relative' }">
           <n-input
             ref="inputRef"
             placeholder="Search"
@@ -163,43 +187,44 @@ onMounted(async () => {
             @input="handleQuerySuggests"
             @focus="handleQuerySuggests"
             @blur="isShowSuggests = false"
-            :style="{ minWidth: '360px' }"
           />
           <n-button attr-type="submit" type="primary">
             <template #icon>
               <n-icon :component="Search" />
             </template>
           </n-button>
-        </n-input-group>
-        <n-list
-          hoverable
-          bordered
-          clickable
-          :show-divider="false"
-          :style="{
-            position: 'absolute',
-            top: '40px',
-            right: '50%',
-            transform: 'translateX(50%)',
-            width: '400px',
-            padding: '12px 0',
-          }"
-          v-show="isShowSuggests && suggestOptions.length"
-        >
-          <n-list-item
-            :style="{ padding: '5px 10px' }"
-            v-for="suggest in suggestOptions"
-            :key="suggest"
-            @mousedown="handleRedirectSearch(suggest)"
+          <n-list
+            hoverable
+            bordered
+            clickable
+            :show-divider="false"
+            :style="{
+              position: 'absolute',
+              top: '40px',
+              right: 0,
+              left: 0,
+              padding: '12px 0',
+            }"
+            v-show="isShowSuggests && suggestOptions.length"
           >
-            <n-space :wrap="false" align="center">
-              <div :style="{ display: 'flex', alignItems: 'center' }">
-                <n-icon :component="Search" size="17" />
-              </div>
-              {{ suggest }}
-            </n-space>
-          </n-list-item>
-        </n-list>
+            <n-list-item
+              :style="{ padding: '5px 10px' }"
+              v-for="suggest in suggestOptions"
+              :key="suggest"
+              @mousedown="handleRedirectSearch(suggest)"
+            >
+              <n-space :wrap="false" align="center">
+                <n-text
+                  tag="div"
+                  :style="{ display: 'flex', alignItems: 'center' }"
+                >
+                  <n-icon :component="Search" size="17" />
+                </n-text>
+                {{ suggest }}
+              </n-space>
+            </n-list-item>
+          </n-list>
+        </n-input-group>
       </n-form>
       <n-space align="center" justify="center" :size="20">
         <n-switch
@@ -279,7 +304,7 @@ onMounted(async () => {
           </n-button>
         </template>
       </n-space>
-    </n-space>
+    </n-text>
   </n-layout-header>
   <!-- Sidebar -->
   <n-drawer
@@ -291,6 +316,7 @@ onMounted(async () => {
       :header-style="{ padding: '14px' }"
       :body-content-style="{ padding: '2px' }"
       :footer-style="{ padding: '8px' }"
+      :native-scrollbar="false"
     >
       <template #header>
         <n-space align="center" :size="0">
@@ -305,9 +331,29 @@ onMounted(async () => {
         </n-space>
       </template>
       <n-menu :options="drawerOptions" :indent="16" />
-      <n-h5 prefix="bar" :style="{ margin: '8px' }" type="success"
-        >Subscriptions</n-h5
+      <n-h5 prefix="bar" :style="{ margin: '8px' }" type="success">
+        Subscriptions
+      </n-h5>
+      <n-list
+        :show-divider="false"
+        clickable
+        hoverable
+        :style="{ margin: '12px 8px' }"
       >
+        <n-list-item
+          v-for="channel in subscribedChannels"
+          :style="{ padding: '5px' }"
+          @click="router.push(`/channel/${channel.id}`)"
+        >
+          <n-text
+            tag="div"
+            :style="{ display: 'flex', alignItems: 'center', gap: '10px' }"
+          >
+            <n-avatar :src="channel.avatarUrl" round size="small" />
+            <n-text strong>{{ channel.name }}</n-text>
+          </n-text>
+        </n-list-item>
+      </n-list>
       <template #footer>
         <n-space align="center">
           <n-text type="info" italic> pth-1641 ❤</n-text>
