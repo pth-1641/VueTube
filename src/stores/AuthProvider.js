@@ -22,7 +22,8 @@ export const useAuth = defineStore('auth-provider', {
       const { data } = await supabase.auth.getUser();
       return (this.user = data.user);
     },
-    logOut() {
+    async logOut() {
+      await supabase.auth.signOut();
       return (this.user = null);
     },
     async subscribeChannel({ channelId, uid }) {
@@ -37,7 +38,7 @@ export const useAuth = defineStore('auth-provider', {
       const { data } = await supabase
         .from('channels')
         .select()
-        .eq('user_id', this.user.id);
+        .eq('user_id', this.user?.id);
       this.subscribedChannels = data;
       supabase
         .channel('channels')

@@ -3,6 +3,7 @@ export const xmlToSubtitle = (xml) => {
   const formatXML = xml.split('<br />').join(' ');
   const subTags = formatXML.match(subTagsRegex);
   const timeCollection = subTags.map((tag) => {
+    tag = tag.replace(/\n|\r/g, '');
     const text = tag.match(/<p[^>]+>(.*?)<\/p>/)[1];
     const start = tag.match(/begin\=\"(.*?)"/)[1].split(':');
     const end = tag.match(/end\=\"(.*?)"/)[1].split(':');

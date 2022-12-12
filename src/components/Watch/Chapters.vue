@@ -12,13 +12,20 @@ import {
 } from 'naive-ui';
 import { CaretRight } from '@vicons/carbon';
 import { convertTimer } from '../../utils/convert-timer';
+import { onMounted, ref } from 'vue';
 
-const { chapters, channelName, videoCurrentTime } = defineProps([
+const { chapters, channelName, videoCurrentTime, duration } = defineProps([
   'chapters',
   'channelName',
   'videoCurrentTime',
+  'duration',
 ]);
 const emit = defineEmits(['selected-chapter']);
+const videoHeight = ref();
+
+onMounted(() => {
+  videoHeight.value = document.querySelector('video').clientHeight;
+});
 </script>
 
 <template>
@@ -34,7 +41,7 @@ const emit = defineEmits(['selected-chapter']);
     <n-collapse arrow-placement="right" default-expanded-names="chapters">
       <n-collapse-item :title="channelName" name="chapters">
         <template #arrow> <n-icon :component="CaretRight" /> </template>
-        <n-scrollbar :style="{ maxHeight: '320px' }">
+        <n-scrollbar :style="{ maxHeight: `${videoHeight - 125}px` }">
           <n-space vertical>
             <template v-for="(chapter, index) in chapters">
               <n-space
@@ -45,13 +52,13 @@ const emit = defineEmits(['selected-chapter']);
                   cursor: 'pointer',
                   borderRadius: '4px',
                   padding:
-                    index + 1 ===
-                    chapters.findIndex((c) => videoCurrentTime <= c.start)
+                    index ===
+                    chapters.findLastIndex((c) => c.start <= videoCurrentTime)
                       ? '4px 6px'
                       : '0 6px',
                   backgroundColor:
-                    index + 1 ===
-                    chapters.findIndex((c) => videoCurrentTime <= c.start)
+                    index ===
+                    chapters.findLastIndex((c) => c.start <= videoCurrentTime)
                       ? 'rgba(99, 226, 183, 0.25)'
                       : 'transparent',
                 }"

@@ -29,19 +29,21 @@ import {
   Moon,
   Home,
   Logout,
-  ThumbsUp,
   Time,
+  LogoGithub,
+  LogoFacebook,
+  Settings,
 } from '@vicons/carbon';
 import { ref, h, onMounted, watch } from 'vue';
-import { RouterLink } from 'vue-router';
 import axios from 'axios';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { supabase } from '../supabase';
 import VueLogo from '../assets/vue.svg';
 import { useAuth } from '../stores/AuthProvider';
 
 const isDark = localStorage.theme === 'dark';
 const emit = defineEmits(['toggle-theme']);
+const route = useRoute();
 const router = useRouter();
 const queryString = ref('');
 const inputRef = ref();
@@ -52,6 +54,7 @@ const isShowSuggests = ref(false);
 const authProvider = useAuth();
 const user = ref();
 const subscribedChannels = ref([]);
+const currentPath = ref();
 
 const handleQuerySuggests = (query) => {
   isShowSuggests.value = true;
@@ -72,11 +75,11 @@ const handleSignInWithGoogle = async () => {
 };
 
 const handleSignOut = async () => {
-  await supabase.auth.signOut();
-  authProvider.logOut();
+  await authProvider.logOut();
 };
 
 const handleRedirectSearch = (suggest) => {
+  if (!suggest.trim()) return;
   isShowSuggests.value = false;
   queryString.value = suggest.trim();
   inputRef.value.blur();
@@ -88,24 +91,33 @@ const renderIcon = (icon) => {
   return () => h(NIcon, null, { default: () => h(icon) });
 };
 
+const renderRoute = (label, route) =>
+  h(
+    'div',
+    {
+      onClick: () => {
+        router.push(route);
+        drawerActive.value = false;
+      },
+    },
+    label
+  );
+
 const drawerOptions = [
   {
-    label: 'Home',
+    label: () => renderRoute('Home', '/'),
     icon: renderIcon(Home),
-    route: '/',
-    key: 'home',
+    key: '/',
   },
   {
-    label: 'Liked videos',
-    icon: renderIcon(ThumbsUp),
-    route: '/liked',
-    key: 'liked-videos',
-  },
-  {
-    label: 'History',
+    label: () => renderRoute('History', '/history'),
     icon: renderIcon(Time),
-    route: '/history',
-    key: 'history',
+    key: '/history',
+  },
+  {
+    label: () => renderRoute('Settings', '/settings'),
+    icon: renderIcon(Settings),
+    key: '/settings',
   },
 ];
 
@@ -122,10 +134,15 @@ onMounted(async () => {
   user.value = await authProvider.getUser();
   await authProvider.getSubscribedChannels();
   getChannelInfo(authProvider.subscribedChannels);
+  currentPath.value = route.path;
 });
 
 watch(authProvider, ({ subscribedChannels }) => {
   getChannelInfo(subscribedChannels);
+});
+
+watch(route, ({ path }) => {
+  currentPath.value = path;
 });
 </script>
 
@@ -315,7 +332,7 @@ watch(authProvider, ({ subscribedChannels }) => {
     <n-drawer-content
       :header-style="{ padding: '14px' }"
       :body-content-style="{ padding: '2px' }"
-      :footer-style="{ padding: '8px' }"
+      :footer-style="{ padding: '5px 8px' }"
       :native-scrollbar="false"
     >
       <template #header>
@@ -330,7 +347,7 @@ watch(authProvider, ({ subscribedChannels }) => {
           </n-h2>
         </n-space>
       </template>
-      <n-menu :options="drawerOptions" :indent="16" />
+      <n-menu :options="drawerOptions" :indent="16" :value="currentPath" />
       <n-h5 prefix="bar" :style="{ margin: '8px' }" type="success">
         Subscriptions
       </n-h5>
@@ -343,7 +360,12 @@ watch(authProvider, ({ subscribedChannels }) => {
         <n-list-item
           v-for="channel in subscribedChannels"
           :style="{ padding: '5px' }"
-          @click="router.push(`/channel/${channel.id}`)"
+          @click="
+            () => {
+              router.push(`/channel/${channel.id}`);
+              drawerActive = false;
+            }
+          "
         >
           <n-text
             tag="div"
@@ -355,8 +377,31 @@ watch(authProvider, ({ subscribedChannels }) => {
         </n-list-item>
       </n-list>
       <template #footer>
-        <n-space align="center">
-          <n-text type="info" italic> pth-1641 ❤</n-text>
+        <n-space align="center" justify="space-between">
+          <n-text
+            tag="div"
+            :style="{ display: 'flex', alignItems: 'center', gap: '8px' }"
+          >
+            <n-button
+              text
+              tag="a"
+              href="https://www.facebook.com/pth.1641"
+              target="_blank"
+            >
+              <n-icon :component="LogoFacebook" :size="18" />
+            </n-button>
+            <n-button
+              text
+              tag="a"
+              href="https://github.com/pth-1641"
+              target="_blank"
+            >
+              <n-icon :component="LogoGithub" :size="18" />
+            </n-button>
+          </n-text>
+          <n-text type="info" :style="{ fontSize: '11px' }">
+            Powered by pth-1641 ❤
+          </n-text>
         </n-space>
       </template>
     </n-drawer-content>

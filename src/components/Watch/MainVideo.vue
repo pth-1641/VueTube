@@ -22,7 +22,7 @@ import {
   NSwitch,
   useMessage,
 } from 'naive-ui';
-import { useRouter, useRoute } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { formatCommaViews, formatViews } from '../../utils/format-view-count';
 import { renderHTML } from '../../utils/render-html';
 import { ref, h } from 'vue';
@@ -37,13 +37,14 @@ import {
   VideoOffFilled,
 } from '@vicons/carbon';
 import CustomVideoPlayer from './CustomVideoPlayer.vue';
+import { useAuth } from '../../stores/AuthProvider';
 
 const message = useMessage();
 const router = useRouter();
-const route = useRoute();
 const { video, startTimeChapter } = defineProps(['video', 'startTimeChapter']);
 const emit = defineEmits(['time-update']);
 const onlyAudio = ref(false);
+const authProvider = useAuth();
 
 const mp3Options = video.audioStreams
   ?.filter((audio) => !audio.format.includes('WEBM'))
@@ -80,8 +81,31 @@ const handleDownload = () => {
   resetDefault();
 };
 
+const handleSubscribe = async (channelId) => {
+  const uid = authProvider.userId;
+  const { error } = await authProvider.subscribeChannel({ uid, channelId });
+  if (error) message.error(error.message);
+};
+
+const handleUnsubscribe = async (channelId) => {
+  const listChannel = authProvider.subscribedChannels;
+  const index = listChannel.findIndex((c) => c.channel_id === channelId);
+  const { error } = await authProvider.unsubscribeChannel(
+    listChannel[index].id
+  );
+  if (error) message.error(error.message);
+};
+
 const getUpdateTime = ({ currentTime }) => {
   emit('time-update', { currentTime });
+};
+
+const checkSubscribe = (channelId) => {
+  return (
+    authProvider.subscribedChannels.findIndex(
+      (c) => c.channel_id === channelId
+    ) > -1
+  );
 };
 </script>
 
@@ -168,9 +192,23 @@ const getUpdateTime = ({ currentTime }) => {
           Dislike
         </n-button>
       </n-button-group>
-      <n-button type="primary" :style="{ fontWeight: 600 }">
-        Subscribe
-      </n-button>
+      <template v-if="checkSubscribe(video.uploaderUrl.split('/')[2])">
+        <n-button
+          :style="{ fontWeight: 600 }"
+          @click="handleUnsubscribe(video.uploaderUrl.split('/')[2])"
+        >
+          Subscribed
+        </n-button>
+      </template>
+      <template v-else>
+        <n-button
+          type="success"
+          :style="{ fontWeight: 600 }"
+          @click="handleSubscribe(video.uploaderUrl.split('/')[2])"
+        >
+          Subscribe
+        </n-button>
+      </template>
     </n-space>
   </n-space>
   <n-space
@@ -280,12 +318,12 @@ const getUpdateTime = ({ currentTime }) => {
           </n-gi>
           <n-gi>
             <n-form-item label="Width">
-              <n-input :value="downloadInfo.width ?? 0" readonly />
+              <n-input :value="downloadInfo.width ?? '0'" readonly />
             </n-form-item>
           </n-gi>
           <n-gi>
             <n-form-item label="Height">
-              <n-input :value="downloadInfo.height ?? 0" readonly />
+              <n-input :value="downloadInfo.height ?? '0'" readonly />
             </n-form-item>
           </n-gi>
         </template>

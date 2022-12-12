@@ -9,8 +9,9 @@ import {
   NIcon,
   NLoadingBarProvider,
 } from 'naive-ui';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { BackToTop } from '@vicons/carbon';
+import { localDB } from './utils/localDB';
 
 const theme = ref(localStorage.theme === 'dark' ? darkTheme : lightTheme);
 const handleToggleTheme = () => {
@@ -18,6 +19,11 @@ const handleToggleTheme = () => {
   theme.value = currentTheme === 'light' ? darkTheme : lightTheme;
   localStorage.theme = theme.value.name;
 };
+
+onMounted(() => {
+  const { init } = localDB();
+  init();
+});
 </script>
 
 <template>

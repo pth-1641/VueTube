@@ -16,6 +16,7 @@ import {
   useLoadingBar,
   NTooltip,
   NSpin,
+  NImage,
 } from 'naive-ui';
 import { CheckmarkFilled } from '@vicons/carbon';
 import { convertTimer } from '../utils/convert-timer';
@@ -62,10 +63,13 @@ const nextTrendingData = async () => {
 onMounted(async () => {
   try {
     loadingBar.start();
-    const { data } = await axios.get('/trending?region=VN');
+    const { data } = await axios.get(
+      `/trending?region=${localStorage['countryCode'] || 'VN'}`
+    );
     videos.value = data.filter((v) => !v.isShort);
     document.title = 'VueTube';
     window.addEventListener('scroll', nextTrendingData);
+    window.scrollTo(0, 0);
     loadingBar.finish();
   } catch (err) {
     console.error(err);
@@ -96,10 +100,12 @@ onBeforeUnmount(() => window.removeEventListener('scroll', nextTrendingData));
                 marginBottom: '12px',
               }"
             >
-              <img
+              <n-image
                 :src="video.thumbnail"
                 :style="{ height: '100%' }"
                 @click="router.push(video.url)"
+                lazy
+                :preview-disabled="true"
               />
               <n-tag
                 strong
@@ -123,7 +129,6 @@ onBeforeUnmount(() => window.removeEventListener('scroll', nextTrendingData));
                   :src="video.uploaderAvatar"
                   round
                   lazy
-                  object-fit="cover"
                   @click="router.push(video.uploaderUrl)"
                 />
               </abbr>

@@ -32,11 +32,21 @@ import {
   EdgeEnhancement02,
   Checkmark,
   RepeatOne,
+  Minimize,
 } from '@vicons/carbon';
 import { convertTimer } from '../../utils/convert-timer';
-import { ref, markRaw, onBeforeUnmount, onMounted, h } from 'vue';
+import {
+  ref,
+  onBeforeUnmount,
+  onMounted,
+  h,
+  watch,
+  reactive,
+  markRaw,
+} from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { xmlToSubtitle } from '../../utils/xml-to-subtitle';
+import Hls from 'hls.js';
 
 const {
   audioStreams,
@@ -64,41 +74,45 @@ const {
 
 const emit = defineEmits(['time-update']);
 
-const leftOptions = markRaw({
+const leftOptions = reactive({
   Play: {
-    icon: PlayFilledAlt,
+    icon: markRaw(PlayFilledAlt),
     isShow: false,
   },
   Pause: {
-    icon: PauseFilled,
+    icon: markRaw(PauseFilled),
     isShow: true,
   },
   Next: {
-    icon: SkipForwardFilled,
+    icon: markRaw(SkipForwardFilled),
     isShow: true,
   },
   Mute: {
-    icon: VolumeUpFilled,
-    isShow: localStorage.volume ?? true,
+    icon: markRaw(VolumeUpFilled),
+    isShow: localStorage.volume > 0,
   },
   Unmute: {
-    icon: VolumeMuteFilled,
-    isShow: localStorage.volume > 0 ? false : true,
+    icon: markRaw(VolumeMuteFilled),
+    isShow: !(localStorage.volume > 0),
   },
 });
 
-const rightOptions = markRaw({
+const rightOptions = reactive({
   Settings: {
-    icon: Settings,
+    icon: markRaw(Settings),
     isShow: true,
   },
   Miniplayer: {
-    icon: BringToFront,
+    icon: markRaw(BringToFront),
     isShow: document.pictureInPictureEnabled,
   },
   'Full screen': {
-    icon: Maximize,
+    icon: markRaw(Maximize),
     isShow: true,
+  },
+  'Exit full screen': {
+    icon: markRaw(Minimize),
+    isShow: false,
   },
 });
 
@@ -111,7 +125,7 @@ const volume = ref(localStorage.volume ? +localStorage.volume : 100);
 const autoNextVideo = ref(true);
 const timeoutPercent = ref(0);
 const videoProgressInterval = ref();
-const selectedQuality = ref('720p');
+const selectedQuality = ref(localStorage['resolution'] || '720p');
 const selectedSubtitle = ref('off');
 const subtitleCollection = ref();
 const subtitleContent = ref('');
@@ -119,25 +133,38 @@ const playerStatus = ref('play');
 const isRepeat = ref(false);
 const isPlaying = ref(true);
 
+const streamingUrl = (hlsSource) => {
+  const hls = new Hls();
+  hls.loadSource(hlsSource);
+  hls.attachMedia(videoRef.value);
+  hls.on(Hls.Events.MANIFEST_PARSED, function () {
+    videoRef.value.play();
+  });
+};
+
 const videoUrl = (streams, quality) => {
   const sortedStreams = streams
-    .filter((s) => s.videoOnly)
+    .filter((s) => s.format === 'WEBM' && s.videoOnly)
     .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
   const video =
-    sortedStreams.find((s) => s.videoOnly && s.quality === quality) ??
-    sortedStreams[0];
-  return video?.url ?? hls;
+    sortedStreams.find((s) => s.quality === quality) ?? sortedStreams[0];
+  selectedQuality.value = video.quality;
+  return video.url;
 };
 
 const audioUrl = (audios) => {
-  const bestAudioQuality = audios.sort(
-    (a, b) => parseInt(b.quality) - parseInt(a.quality)
-  )[0];
-  return bestAudioQuality?.url;
+  const bestAudioQuality = audios.sort((a, b) => b.bitrate - a.bitrate)[0];
+  return bestAudioQuality.url;
 };
 
 const qualities = (streams) => {
-  return [...new Map(streams.map((v) => [parseInt(v['quality']), v])).values()];
+  const qualities = streams
+    .filter((s) => s.format === 'WEBM')
+    .sort((a, b) => parseInt(b.height) - parseInt(a.height));
+  const removeDuplicate = [
+    ...new Map(qualities.map((q) => [parseInt(q['quality']), q])).values(),
+  ];
+  return removeDuplicate;
 };
 
 // Controls
@@ -165,7 +192,10 @@ const handleControlsClick = (type) => {
       videoRef.value.requestPictureInPicture();
       break;
     case 'full screen':
-      videoRef.value.requestFullscreen();
+      toggleFullScreen('maximize');
+      break;
+    case 'exit full screen':
+      toggleFullScreen('minimize');
       break;
     default:
       return;
@@ -176,17 +206,33 @@ const togglePlay = (status) => {
   playerStatus.value = status;
   audioRef.value?.[status]();
   videoRef.value?.[status]();
-  leftOptions['Play'].isShow = status === 'play' ? false : true;
-  leftOptions['Pause'].isShow = status === 'play' ? true : false;
-  volume.value = volume.value - 1;
-  volume.value = volume.value + 1;
+  leftOptions['Play'].isShow = status !== 'play';
+  leftOptions['Pause'].isShow = status === 'play';
 };
 
 const toggleMute = (status) => {
-  audioRef.value.muted = status === 'mute' ? true : false;
-  leftOptions['Mute'].isShow = status === 'mute' ? false : true;
-  leftOptions['Unmute'].isShow = status === 'mute' ? true : false;
+  localStorage.muted = status === 'mute';
+  audioRef.value.muted = status === 'mute';
+  leftOptions['Mute'].isShow = status !== 'mute';
+  leftOptions['Unmute'].isShow = status === 'mute';
+  audioRef.value.volume = audioRef.value.volume || 1;
   volume.value = status === 'mute' ? 0 : parseInt(audioRef.value.volume * 100);
+};
+
+const toggleFullScreen = (status) => {
+  rightOptions['Full screen'].isShow = status !== 'maximize';
+  rightOptions['Exit full screen'].isShow = status === 'maximize';
+  rightOptions['Miniplayer'].isShow = status !== 'maximize';
+  if (status === 'maximize') {
+    document.querySelector('body').requestFullscreen();
+    document.querySelector('#player-wrapper').classList.add('full-screen');
+    return;
+  }
+  if (status === 'minimize') {
+    document.exitFullscreen();
+    document.querySelector('#player-wrapper').classList.remove('full-screen');
+    return;
+  }
 };
 
 const openSettingOptions = () => {
@@ -224,6 +270,10 @@ const handleTimeUpdate = () => {
 };
 
 const handleChangeVideoDuration = (time) => {
+  document.querySelector('#player-status').style.opacity = 0;
+  document.querySelector('#player-controls').style.opacity = 0;
+  isPlaying.value ? togglePlay('play') : togglePlay('pause');
+  playerStatus.value = isPlaying.value ? 'play' : 'pause';
   timeoutPercent.value = 0;
   clearInterval(videoProgressInterval.value);
   audioRef.value.currentTime = time;
@@ -246,6 +296,8 @@ const handleChangeVolume = (selectedVolume) => {
 // Video ended
 const handleVideoEnded = () => {
   togglePlay('pause');
+  document.querySelector('#player-status').style.opacity = 1;
+  document.querySelector('#player-controls').style.opacity = 1;
   if (document.pictureInPictureElement) {
     document.exitPictureInPicture();
   }
@@ -253,23 +305,22 @@ const handleVideoEnded = () => {
     togglePlay('play');
     return;
   }
-  document.querySelector('#player-status').style.opacity = 1;
-  document.querySelector('#player-controls').style.opacity = 1;
   if (autoNextVideo.value) {
     playerStatus.value = 'next-video';
     videoProgressInterval.value = setInterval(() => {
-      timeoutPercent.value += 1;
-    }, 50);
-    // if (timeoutPercent.value > 100) {
-    //   router.push(nextVideo.url);
-    //   playerStatus.value = 'play';
-    //   togglePlay('play');
-    // }
+      timeoutPercent.value += 20;
+    }, 1000);
+    if (timeoutPercent.value > 100) {
+      router.push(nextVideo.url);
+      playerStatus.value = 'play';
+      togglePlay('play');
+    }
   }
 };
 
 // Click video
 const handleClickVideo = () => {
+  if (playerStatus.value === 'loading') return;
   const isVideoPlaying = !audioRef.value.paused;
   isVideoPlaying ? togglePlay('pause') : togglePlay('play');
 };
@@ -307,7 +358,10 @@ const handleSelectSubtitle = async (sub) => {
     .querySelector('#player-controls')
     .classList.remove('settings-active');
   selectedSubtitle.value = sub;
-  if (sub === 'off') return;
+  if (sub === 'off') {
+    subtitleCollection.value = null;
+    return;
+  }
   const res = await fetch(sub.url);
   subtitleCollection.value = xmlToSubtitle(await res.text());
 };
@@ -318,7 +372,6 @@ const handleAutoPlay = () => {
 };
 
 const handleLoadingMetaData = () => {
-  isPlaying.value = !audioRef.value.paused;
   togglePlay('pause');
   playerStatus.value = 'loading';
 };
@@ -347,10 +400,18 @@ onBeforeUnmount(() => {
     document.exitPictureInPicture();
   }
 });
+
+watch(route, () => {
+  selectedSubtitle.value = 'off';
+  timeoutPercent.value = 0;
+  videoProgressInterval.value = null;
+  subtitleCollection.value = null;
+});
 </script>
 
 <template>
   <n-text
+    id="player-wrapper"
     tag="div"
     :style="{
       background: '#000',
@@ -385,25 +446,22 @@ onBeforeUnmount(() => {
     <template v-else>
       <video
         ref="videoRef"
-        :style="{ height: '100%' }"
-        preload="metadata"
-        muted
-        :src="videoUrl(videoStreams, selectedQuality)"
+        :style="{ width: '100%' }"
+        :src="
+          isLive ? streamingUrl(hls) : videoUrl(videoStreams, selectedQuality)
+        "
         type="video/*"
-        autoplay
-        @canplay="handleAutoPlay"
-        @waiting="handleLoadingMetaData"
         @ended="handleVideoEnded"
         @pause="handleEventPip('pause')"
         @play="handleEventPip('play')"
+        @canplaythrough="handleAutoPlay"
       />
     </template>
     <audio
       ref="audioRef"
       :src="audioUrl(audioStreams)"
       type="audio/*"
-      preload="metadata"
-      autoplay
+      @play="togglePlay('play')"
       @timeupdate="handleTimeUpdate"
       @waiting="handleLoadingMetaData"
     />
@@ -469,7 +527,7 @@ onBeforeUnmount(() => {
             :style="{ display: 'flex', alignItems: 'center', gap: '20px' }"
           >
             <!-- Left -->
-            <template v-if="route.query.list && route.query.index">
+            <template v-if="route.query.list">
               <n-tooltip :show-arrow="false">
                 <template #trigger>
                   <n-icon
@@ -654,41 +712,44 @@ onBeforeUnmount(() => {
                         fontSize: '12px',
                       }"
                     >
-                      <template
-                        v-for="playbackRate in [1, 2, 3, 4, 5, 6, 7, 8]"
-                      >
-                        <n-list-item :style="{ padding: 0 }">
-                          <n-text
-                            tag="div"
-                            :style="{
-                              padding: '8px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              color: '#fff',
-                              gap: '6px',
-                            }"
-                            @click="
-                              handleSelectPlaybackRate(playbackRate * 0.25)
-                            "
-                          >
-                            <n-icon
-                              :component="Checkmark"
-                              size="16"
+                      <n-scrollbar :style="{ maxHeight: '250px' }">
+                        <template
+                          v-for="playbackRate in [1, 2, 3, 4, 5, 6, 7, 8]"
+                        >
+                          <n-list-item :style="{ padding: 0 }">
+                            <n-text
+                              tag="div"
                               :style="{
-                                opacity:
-                                  playbackRate * 0.25 === videoRef.playbackRate
-                                    ? 1
-                                    : 0,
+                                padding: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                color: '#fff',
+                                gap: '6px',
                               }"
-                            />
-                            {{
-                              0.25 * playbackRate === 1
-                                ? 'Normal'
-                                : 0.25 * playbackRate
-                            }}
-                          </n-text>
-                        </n-list-item>
-                      </template>
+                              @click="
+                                handleSelectPlaybackRate(playbackRate * 0.25)
+                              "
+                            >
+                              <n-icon
+                                :component="Checkmark"
+                                size="16"
+                                :style="{
+                                  opacity:
+                                    playbackRate * 0.25 ===
+                                    videoRef.playbackRate
+                                      ? 1
+                                      : 0,
+                                }"
+                              />
+                              {{
+                                0.25 * playbackRate === 1
+                                  ? 'Normal'
+                                  : 0.25 * playbackRate
+                              }}
+                            </n-text>
+                          </n-list-item>
+                        </template>
+                      </n-scrollbar>
                     </n-list>
                   </n-tab-pane>
                   <n-tab-pane
@@ -807,5 +868,15 @@ video::-webkit-media-controls-enclosure {
 .settings-active {
   opacity: 1 !important;
   pointer-events: all !important;
+}
+
+.full-screen {
+  position: fixed !important;
+  inset: 0;
+  z-index: 999;
+}
+
+.hide-cursor {
+  cursor: 'none';
 }
 </style>

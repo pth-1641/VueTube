@@ -4,9 +4,8 @@ import App from './App.vue';
 import router from './router';
 import { createPinia } from 'pinia';
 
-const requestUrls = import.meta.env.VITE_API_URL.split(', ');
-const randomURL = Math.floor(Math.random() * requestUrls.length);
-axios.defaults.baseURL = requestUrls[randomURL];
+axios.defaults.baseURL =
+  document.cookie.split('=')[1] || import.meta.env.VITE_API_URL;
 const app = createApp(App);
 
 // Middleware

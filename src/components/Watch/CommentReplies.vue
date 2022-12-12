@@ -19,10 +19,11 @@ import { formatViews } from '../../utils/format-view-count';
 import { useRouter, useRoute } from 'vue-router';
 import { getNextData } from '../../utils/get-next-data';
 
-const { replyCount, repliesPage, uploaderUrl } = defineProps([
+const { replyCount, repliesPage, uploaderUrl, uploaderAvatar } = defineProps([
   'replyCount',
   'repliesPage',
   'uploaderUrl',
+  'uploaderAvatar',
 ]);
 const replies = ref([]);
 const nextReplies = ref(repliesPage);
@@ -120,12 +121,20 @@ const handleGetReplies = async () => {
               :style="{ transform: 'rotate(180deg)' }"
             />
             <template v-if="reply.hearted">
-              <n-icon
-                :component="FavoriteFilled"
-                :size="16"
-                color="#f00"
-                :depth="1"
-              />
+              <n-text tag="div" :style="{ position: 'relative' }">
+                <n-avatar :src="uploaderAvatar" :size="16" circle />
+                <n-icon
+                  :component="FavoriteFilled"
+                  :size="14"
+                  color="#f00"
+                  :depth="1"
+                  :style="{
+                    position: 'absolute',
+                    bottom: 0,
+                    right: '-6px',
+                  }"
+                />
+              </n-text>
             </template>
           </n-space>
         </n-text>

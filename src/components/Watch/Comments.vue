@@ -1,42 +1,91 @@
 <script setup>
-import { NSpace, NAvatar, NText, NIcon, NH4, NTag, NEllipsis } from 'naive-ui';
+import {
+  NSpace,
+  NAvatar,
+  NText,
+  NIcon,
+  NH4,
+  NTag,
+  NEllipsis,
+  NSpin,
+} from 'naive-ui';
 import { useRoute, useRouter } from 'vue-router';
-import { onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import axios from 'axios';
 import { formatViews } from '../../utils/format-view-count';
 import { renderHTML } from '../../utils/render-html';
 import { ThumbsUp, Pin, FavoriteFilled } from '@vicons/carbon';
 import CommentReplies from './CommentReplies.vue';
+import { getNextData } from '../../utils/get-next-data';
 
+const { uploaderUrl, uploader, uploaderAvatar } = defineProps([
+  'uploaderUrl',
+  'uploader',
+  'uploaderAvatar',
+]);
 const route = useRoute();
 const router = useRouter();
-const videoComments = ref({});
-const { uploaderUrl, uploader } = defineProps(['uploaderUrl', 'uploader']);
+const endComments = ref();
+const comments = ref({});
+const nextpageData = ref();
+const isLoading = ref(false);
+const videoId = route.query.v;
 
-const getComments = async (videoId) => {
+const getComments = async (id) => {
   try {
-    const { data } = await axios.get(`/comments/${videoId}`);
-    videoComments.value = data;
+    const { data } = await axios.get(`/comments/${id}`);
+    comments.value = data.comments;
+    nextpageData.value = data.nextpage;
   } catch (err) {
     console.error(err);
   }
 };
 
+const loadMoreComments = async () => {
+  try {
+    const rect = endComments.value.getBoundingClientRect();
+    const isEnd = rect.bottom <= document.documentElement.clientHeight;
+    if (!isEnd || !nextpageData.value) return;
+    if (isLoading.value) return;
+    isLoading.value = true;
+    const res = await getNextData({
+      type: 'comments',
+      nextpage: nextpageData.value,
+      id: videoId,
+    });
+    nextpageData.value = res.nextpage;
+    comments.value = [...comments.value, ...res.comments];
+  } catch (err) {
+    console.error(err);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 onMounted(() => {
-  getComments(route.query.v);
+  getComments(videoId);
+  window.addEventListener('scroll', loadMoreComments);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', loadMoreComments);
+});
+
+watch(route, ({ query }) => {
+  getComments(query.v);
 });
 </script>
 
 <template>
-  <template v-if="videoComments.disabled">
-    <n-space justify="center" :style="{ marginTop: '30px' }"
-      >Comments are turned off.</n-space
-    >
+  <template v-if="comments.disabled">
+    <n-space justify="center" :style="{ marginTop: '30px' }">
+      Comments are turned off.
+    </n-space>
   </template>
   <template v-else>
     <n-h4 prefix="bar" :style="{ fontSize: '18px' }"> Comments </n-h4>
     <n-space
-      v-for="comment in videoComments.comments"
+      v-for="comment in comments"
       :key="comment.commentId"
       align="start"
       :wrap="false"
@@ -89,9 +138,9 @@ onMounted(() => {
           <n-space align="start" :size="6">
             <n-icon :component="ThumbsUp" :size="17" />
             <template v-if="comment.likeCount !== 0">
-              <n-text :style="{ fontSize: '12px' }">{{
-                formatViews(comment.likeCount)
-              }}</n-text>
+              <n-text :style="{ fontSize: '12px' }">
+                {{ formatViews(comment.likeCount) }}
+              </n-text>
             </template>
           </n-space>
           <n-icon
@@ -100,12 +149,20 @@ onMounted(() => {
             :style="{ transform: 'rotate(180deg)' }"
           />
           <template v-if="comment.hearted">
-            <n-icon
-              :component="FavoriteFilled"
-              :size="16"
-              color="#f00"
-              :depth="1"
-            />
+            <n-text tag="div" :style="{ position: 'relative' }">
+              <n-avatar :src="uploaderAvatar" :size="16" circle />
+              <n-icon
+                :component="FavoriteFilled"
+                :size="14"
+                color="#f00"
+                :depth="1"
+                :style="{
+                  position: 'absolute',
+                  bottom: 0,
+                  right: '-6px',
+                }"
+              />
+            </n-text>
           </template>
         </n-space>
         <template v-if="comment.replyCount > 0">
@@ -113,9 +170,17 @@ onMounted(() => {
             :replyCount="comment.replyCount"
             :repliesPage="comment.repliesPage"
             :uploaderUrl="uploaderUrl"
+            :uploaderAvatar="uploaderAvatar"
           />
         </template>
       </n-text>
     </n-space>
+    <template v-if="isLoading">
+      <n-space align="center" justify="center" :style="{ marginTop: '12px' }">
+        <n-spin />
+      </n-space>
+    </template>
+
+    <div ref="endComments" />
   </template>
 </template>

@@ -9,7 +9,7 @@ import {
   NSpin,
 } from 'naive-ui';
 import { useRouter, useRoute } from 'vue-router';
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { formatViews } from '../../utils/format-view-count';
 import {
   CheckmarkFilled,
@@ -25,45 +25,53 @@ const { list } = useRoute().query;
 const router = useRouter();
 const isLoading = ref(false);
 const fetchedVideos = ref([]);
+const videos = ref();
 
-const handleRedirectPlaylist = (url) => {
-  router.push(url.replace('playnext', 'index'));
+const handleRedirectPlaylist = async (url) => {
+  if (url.includes('watch?v=')) {
+    router.push(url.replace('&playnext=1', ''));
+    return;
+  }
+  const list = url.split('list=')[1];
+  const { data } = await axios.get(`/playlists/${list}`);
+  router.push(`${data.relatedStreams?.[0].url}&list=${list}`);
 };
 
-const handleLoadMoreRelatedVideos = async (currentRelatedVideos) => {
-  // try {
-  //   isLoading.value = true;
-  //   let selectedVideo = null;
-  //   do {
-  //     selectedVideo =
-  //       currentRelatedVideos[
-  //         Math.floor(Math.random() * currentRelatedVideos.length)
-  //       ];
-  //   } while (fetchedVideos.value.includes(selectedVideo.url));
-  //   fetchedVideos.value.push(selectedVideo.url);
-  //   const { data } = await axios.get(
-  //     `/streams/${selectedVideo.url.split('=')[1]}`
-  //   );
-  //   const removeShorts = data.relatedStreams.filter((s) => !s.isShort);
-  //   const removeDuplicateVideos = [
-  //     ...new Map(
-  //       [...currentRelatedVideos, ...removeShorts].map((v) => [v['url'], v])
-  //     ).values(),
-  //   ];
-  //   relatedVideos = removeDuplicateVideos;
-  // } catch (err) {
-  //   console.error(err);
-  // } finally {
-  //   isLoading.value = false;
-  // }
-  console.log(relatedVideos);
+const handleLoadMoreRelatedVideos = async () => {
+  try {
+    isLoading.value = true;
+    let selectedVideo = null;
+    do {
+      selectedVideo =
+        videos.value[Math.floor(Math.random() * videos.value.length)];
+    } while (fetchedVideos.value.includes(selectedVideo.url));
+    fetchedVideos.value.push(selectedVideo.url);
+    const { data } = await axios.get(
+      `/streams/${selectedVideo.url.split('=')[1]}`
+    );
+    const removeShorts = data.relatedStreams.filter((s) => !s.isShort);
+    const removeDuplicateVideos = [
+      ...new Map(
+        [...videos.value, ...removeShorts].map((v) => [v['url'], v])
+      ).values(),
+    ];
+    videos.value = removeDuplicateVideos;
+  } catch (err) {
+    console.error(err);
+  } finally {
+    isLoading.value = false;
+  }
 };
+
+onMounted(() => {
+  videos.value = relatedVideos;
+});
 </script>
 
 <template>
   <n-space vertical :size="8">
     <n-space
-      v-for="video in relatedVideos"
+      v-for="video in videos"
       :key="video.url"
       :wrap="false"
       @click="handleRedirectPlaylist(video.url)"
@@ -199,7 +207,7 @@ const handleLoadMoreRelatedVideos = async (currentRelatedVideos) => {
           strong
           secondary
           type="success"
-          @click="handleLoadMoreRelatedVideos(relatedVideos)"
+          @click="handleLoadMoreRelatedVideos"
         >
           Load more
         </n-button>

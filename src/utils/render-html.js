@@ -36,3 +36,10 @@ export const renderHTML = (des) => {
 
   return str;
 };
+
+export const resetString = (des) => {
+  let str = des;
+  str = str.replace(/&nbsp;/g, '');
+  str = str.replace(/<[^>]*>/g, '');
+  return str;
+};

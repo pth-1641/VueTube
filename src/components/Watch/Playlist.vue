@@ -9,46 +9,87 @@ import {
   NText,
   NEllipsis,
   NTag,
-  NButton,
 } from 'naive-ui';
-import { Repeat, CaretRight, Movement } from '@vicons/carbon';
-import { ref, onMounted } from 'vue';
+import { CaretRight } from '@vicons/carbon';
+import { ref, onMounted, watch } from 'vue';
 import axios from 'axios';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { convertTimer } from '../../utils/convert-timer';
 import { getNextData } from '../../utils/get-next-data';
 
-const { playlistId, currentVideoIndex } = defineProps([
-  'playlistId',
-  'currentVideoIndex',
-]);
+const { playlistId } = defineProps(['playlistId']);
 
+const route = useRoute();
 const router = useRouter();
 const playlistDetail = ref();
-const isRepeat = ref(false);
-const isRandom = ref(false);
+const videoHeight = ref();
+const currentVideoIndex = ref();
+const nextPageData = ref();
 
 const handleSelectVideo = ({ index, url }) => {
   router.push(`${url}&list=${playlistId}&index=${index + 1}`);
 };
 
-onMounted(async () => {
-  const { data } = await axios.get(`/playlists/${playlistId} `);
-  playlistDetail.value = data;
-  if (data.nextpage) {
-    // let nextPageData = data.nextpage;
-    // while (nextPageData) {
+const getPlaylistVideos = async () => {
+  try {
+    const { data } = await axios.get(`/playlists/${playlistId} `);
+    playlistDetail.value = data;
+    nextPageData.value = data.nextpage;
+    if (data.videos < 0) return;
+    while (nextPageData.value) {
+      const res = await getNextData({
+        id: playlistId,
+        type: 'playlists',
+        nextpage: data.nextpage,
+      });
+      playlistDetail.value.relatedStreams = [
+        ...playlistDetail.value.relatedStreams,
+        ...res.relatedStreams,
+      ];
+      nextPageData.value = res.nextpage;
+    }
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const loadMoreVideos = async () => {
+  try {
     const res = await getNextData({
       id: playlistId,
       type: 'playlists',
-      nextpage: data.nextpage,
+      nextpage: nextPageData.value,
     });
     playlistDetail.value.relatedStreams = [
       ...playlistDetail.value.relatedStreams,
       ...res.relatedStreams,
     ];
-    // nextPageData = res.nextpage;
-    // }
+    nextPageData.value = res.nextpage;
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+onMounted(async () => {
+  await getPlaylistVideos();
+  videoHeight.value = document.querySelector('video').clientHeight;
+  currentVideoIndex.value = parseInt(route.query.index || 1);
+  while (
+    playlistDetail.value.relatedStreams.length - currentVideoIndex.value <
+    5
+  ) {
+    await loadMoreVideos();
+  }
+});
+
+watch(route, ({ query }) => {
+  currentVideoIndex.value = parseInt(query.index || 1);
+  if (playlistDetail.videos > 0) return;
+  if (
+    playlistDetail.value.relatedStreams.length - currentVideoIndex.value <
+    5
+  ) {
+    loadMoreVideos();
   }
 });
 </script>
@@ -64,34 +105,28 @@ onMounted(async () => {
     embedded
     id="playlist-card"
   >
-    <n-space :style="{ marginBottom: '6px' }">
-      <n-button
-        text
-        :focusable="false"
-        :type="isRepeat ? 'primary' : ''"
-        @click="isRepeat = !isRepeat"
-      >
-        <n-icon :component="Repeat" size="20" />
-      </n-button>
-      <n-button
-        text
-        :focusable="false"
-        :type="isRandom ? 'primary' : ''"
-        @click="isRandom = !isRandom"
-      >
-        <n-icon :component="Movement" size="20" />
-      </n-button>
-    </n-space>
     <n-collapse
       arrow-placement="right"
       default-expanded-names="playlist-videos"
     >
-      <n-collapse-item :title="playlistDetail?.uploader" name="playlist-videos">
+      <n-collapse-item
+        :title="playlistDetail?.uploader.replace('YouTube', 'VueTube')"
+        name="playlist-videos"
+      >
         <template #header-extra>
-          {{ `${currentVideoIndex}/${playlistDetail?.videos}` }}
+          <template v-if="playlistDetail?.videos > 0">
+            {{ `${currentVideoIndex ?? 0}/${playlistDetail?.videos}` }}
+          </template>
+          <template v-else>
+            {{
+              `${currentVideoIndex ?? 0}/${
+                playlistDetail?.relatedStreams.length ?? 0
+              }`
+            }}
+          </template>
         </template>
         <template #arrow> <n-icon :component="CaretRight" /> </template>
-        <n-scrollbar :style="{ maxHeight: '320px' }">
+        <n-scrollbar :style="{ maxHeight: `${videoHeight - 155}px` }">
           <n-space vertical>
             <template v-for="(video, index) in playlistDetail?.relatedStreams">
               <n-space

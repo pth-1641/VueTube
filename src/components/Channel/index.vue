@@ -45,6 +45,7 @@ const getChannelData = async (id) => {
     aboutContent.value = data.description;
     document.title = `VueTube | ${data.name}`;
     selectedTab.value = 'videos';
+    window.scrollTo(0, 0);
     loadingBar.finish();
   } catch (err) {
     console.error(err);

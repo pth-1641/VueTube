@@ -117,8 +117,13 @@ onBeforeUnmount(() => window.removeEventListener('scroll', getNextChannels));
                   marginBottom: '5px',
                 }"
               >
-                <n-ellipsis :tooltip="false">
-                  {{ channel.name }}
+                <n-ellipsis :tooltip="false" :style="{ maxWidth: '150px' }">
+                  <abbr
+                    :title="channel.name"
+                    :style="{ textDecoration: 'none' }"
+                  >
+                    {{ channel.name }}
+                  </abbr>
                 </n-ellipsis>
               </n-h6>
               <template v-if="channel.verified">
