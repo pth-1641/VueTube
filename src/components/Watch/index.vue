@@ -81,6 +81,7 @@ onMounted(async () => {
 });
 
 watch(route, async ({ query }) => {
+  window.scrollTo(0, 0);
   playlistId.value = route.query.list;
   const data = await getVideoDetail(query.v);
   await saveHistory(data);

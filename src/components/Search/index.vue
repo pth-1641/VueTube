@@ -29,7 +29,7 @@ const getData = async (q) => {
     const { data } = await axios.get(`/search?q=${q}&filter=${filter.value}`);
     searchResults.value = data.items;
     nextpageData.value = data.nextpage;
-    document.title = `VueTube | ${q}`;
+    document.title = `${q} | VueTube`;
     loadingBar.finish();
   } catch (err) {
     console.error(err);

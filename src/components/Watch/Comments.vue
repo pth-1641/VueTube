@@ -42,11 +42,11 @@ const getComments = async (id) => {
 };
 
 const loadMoreComments = async () => {
+  const rect = endComments.value.getBoundingClientRect();
+  const isEnd = rect.bottom <= document.documentElement.clientHeight;
+  if (!isEnd || !nextpageData.value) return;
+  if (isLoading.value) return;
   try {
-    const rect = endComments.value.getBoundingClientRect();
-    const isEnd = rect.bottom <= document.documentElement.clientHeight;
-    if (!isEnd || !nextpageData.value) return;
-    if (isLoading.value) return;
     isLoading.value = true;
     const res = await getNextData({
       type: 'comments',

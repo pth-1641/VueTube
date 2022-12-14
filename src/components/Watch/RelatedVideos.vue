@@ -9,7 +9,7 @@ import {
   NSpin,
 } from 'naive-ui';
 import { useRouter, useRoute } from 'vue-router';
-import { onMounted, ref } from 'vue';
+import { ref, watch } from 'vue';
 import { formatViews } from '../../utils/format-view-count';
 import {
   CheckmarkFilled,
@@ -21,11 +21,12 @@ import { convertTimer } from '../../utils/convert-timer';
 import axios from 'axios';
 
 let { relatedVideos } = defineProps(['relatedVideos']);
-const { list } = useRoute().query;
+const route = useRoute();
 const router = useRouter();
+const { list } = route.query;
 const isLoading = ref(false);
 const fetchedVideos = ref([]);
-const videos = ref();
+const nextVideos = ref([]);
 
 const handleRedirectPlaylist = async (url) => {
   if (url.includes('watch?v=')) {
@@ -37,25 +38,20 @@ const handleRedirectPlaylist = async (url) => {
   router.push(`${data.relatedStreams?.[0].url}&list=${list}`);
 };
 
-const handleLoadMoreRelatedVideos = async () => {
+const handleLoadMoreRelatedVideos = async (relatedVideos) => {
   try {
     isLoading.value = true;
     let selectedVideo = null;
     do {
       selectedVideo =
-        videos.value[Math.floor(Math.random() * videos.value.length)];
+        relatedVideos[Math.floor(Math.random() * relatedVideos.length)];
     } while (fetchedVideos.value.includes(selectedVideo.url));
     fetchedVideos.value.push(selectedVideo.url);
     const { data } = await axios.get(
       `/streams/${selectedVideo.url.split('=')[1]}`
     );
     const removeShorts = data.relatedStreams.filter((s) => !s.isShort);
-    const removeDuplicateVideos = [
-      ...new Map(
-        [...videos.value, ...removeShorts].map((v) => [v['url'], v])
-      ).values(),
-    ];
-    videos.value = removeDuplicateVideos;
+    nextVideos.value = [...nextVideos.value, ...removeShorts];
   } catch (err) {
     console.error(err);
   } finally {
@@ -63,15 +59,17 @@ const handleLoadMoreRelatedVideos = async () => {
   }
 };
 
-onMounted(() => {
-  videos.value = relatedVideos;
-});
+const getVideos = (listVideos) => [
+  ...new Map(listVideos.map((v) => [v['url'], v])).values(),
+];
+
+watch(route, () => (nextVideos.value = []));
 </script>
 
 <template>
   <n-space vertical :size="8">
     <n-space
-      v-for="video in videos"
+      v-for="video in getVideos([...relatedVideos, ...nextVideos])"
       :key="video.url"
       :wrap="false"
       @click="handleRedirectPlaylist(video.url)"
@@ -207,7 +205,11 @@ onMounted(() => {
           strong
           secondary
           type="success"
-          @click="handleLoadMoreRelatedVideos"
+          @click="
+            handleLoadMoreRelatedVideos(
+              getVideos([...relatedVideos, ...nextVideos])
+            )
+          "
         >
           Load more
         </n-button>

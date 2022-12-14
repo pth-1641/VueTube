@@ -46,7 +46,7 @@ import {
 } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { xmlToSubtitle } from '../../utils/xml-to-subtitle';
-import Hls from 'hls.js';
+import axios from 'axios';
 
 const {
   audioStreams,
@@ -58,7 +58,6 @@ const {
   subtitles,
   startTimeChapter,
   isLive,
-  hls,
 } = defineProps([
   'audioStreams',
   'videoStreams',
@@ -69,7 +68,6 @@ const {
   'subtitles',
   'startTimeChapter',
   'isLive',
-  'hls',
 ]);
 
 const emit = defineEmits(['time-update']);
@@ -133,15 +131,6 @@ const playerStatus = ref('play');
 const isRepeat = ref(false);
 const isPlaying = ref(true);
 
-const streamingUrl = (hlsSource) => {
-  const hls = new Hls();
-  hls.loadSource(hlsSource);
-  hls.attachMedia(videoRef.value);
-  hls.on(Hls.Events.MANIFEST_PARSED, function () {
-    videoRef.value.play();
-  });
-};
-
 const videoUrl = (streams, quality) => {
   const sortedStreams = streams
     .filter((s) => s.format === 'WEBM' && s.videoOnly)
@@ -168,7 +157,7 @@ const qualities = (streams) => {
 };
 
 // Controls
-const handleControlsClick = (type) => {
+const handleControlsClick = async (type) => {
   switch (type) {
     case 'play':
       togglePlay('play');
@@ -176,8 +165,11 @@ const handleControlsClick = (type) => {
     case 'pause':
       togglePlay('pause');
       break;
+    case 'previous':
+      router.push(await previousVideo());
+      break;
     case 'next':
-      router.push(nextVideo.url);
+      router.push(await nextVideo());
       break;
     case 'mute':
       toggleMute('mute');
@@ -244,6 +236,14 @@ const openSettingOptions = () => {
     .classList.toggle('settings-active');
 };
 
+const previousVideo = async () => {
+  const currentIndex = route.query.index;
+  const playlistId = route.query.list;
+  const { data } = await axios.get(`/playlists/${playlistId} `);
+  const nextVideoUrl = data.relatedStreams[currentIndex].url;
+  return `${nextVideoUrl}&list=${playlistId}&index=${+currentIndex - 1}`;
+};
+
 // Timeline
 const handleTimeUpdate = () => {
   emit('time-update', { currentTime: Math.round(audioRef.value?.currentTime) });
@@ -270,8 +270,6 @@ const handleTimeUpdate = () => {
 };
 
 const handleChangeVideoDuration = (time) => {
-  document.querySelector('#player-status').style.opacity = 0;
-  document.querySelector('#player-controls').style.opacity = 0;
   isPlaying.value ? togglePlay('play') : togglePlay('pause');
   playerStatus.value = isPlaying.value ? 'play' : 'pause';
   timeoutPercent.value = 0;
@@ -309,12 +307,11 @@ const handleVideoEnded = () => {
     playerStatus.value = 'next-video';
     videoProgressInterval.value = setInterval(() => {
       timeoutPercent.value += 20;
+      if (timeoutPercent.value > 100) {
+        router.push(nextVideo.url);
+        playerStatus.value = 'play';
+      }
     }, 1000);
-    if (timeoutPercent.value > 100) {
-      router.push(nextVideo.url);
-      playerStatus.value = 'play';
-      togglePlay('play');
-    }
   }
 };
 
@@ -410,6 +407,9 @@ watch(route, () => {
 </script>
 
 <template>
+  <template v-if="audioRef">
+    {{ handleChangeVideoDuration(startTimeChapter) }}
+  </template>
   <n-text
     id="player-wrapper"
     tag="div"
@@ -446,10 +446,8 @@ watch(route, () => {
     <template v-else>
       <video
         ref="videoRef"
-        :style="{ width: '100%' }"
-        :src="
-          isLive ? streamingUrl(hls) : videoUrl(videoStreams, selectedQuality)
-        "
+        :style="{ height: '100%' }"
+        :src="videoUrl(videoStreams, selectedQuality)"
         type="video/*"
         @ended="handleVideoEnded"
         @pause="handleEventPip('pause')"
@@ -461,7 +459,6 @@ watch(route, () => {
       ref="audioRef"
       :src="audioUrl(audioStreams)"
       type="audio/*"
-      @play="togglePlay('play')"
       @timeupdate="handleTimeUpdate"
       @waiting="handleLoadingMetaData"
     />
@@ -530,13 +527,18 @@ watch(route, () => {
             <template v-if="route.query.list">
               <n-tooltip :show-arrow="false">
                 <template #trigger>
-                  <n-icon
-                    :component="SkipBackFilled"
-                    :size="20"
-                    :style="{ cursor: 'pointer' }"
-                    color="#fff"
+                  <n-button
                     @click="handleControlsClick('previous')"
-                  />
+                    text
+                    :disabled="route.query.index === '1' || !route.query.index"
+                  >
+                    <n-icon
+                      :component="SkipBackFilled"
+                      :size="20"
+                      :style="{ cursor: 'pointer' }"
+                      color="#fff"
+                    />
+                  </n-button>
                 </template>
                 Previous
               </n-tooltip>

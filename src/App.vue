@@ -14,6 +14,7 @@ import { BackToTop } from '@vicons/carbon';
 import { localDB } from './utils/localDB';
 
 const theme = ref(localStorage.theme === 'dark' ? darkTheme : lightTheme);
+
 const handleToggleTheme = () => {
   const currentTheme = theme.value.name;
   theme.value = currentTheme === 'light' ? darkTheme : lightTheme;

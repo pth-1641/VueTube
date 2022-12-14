@@ -22,9 +22,10 @@ import {
   NSwitch,
   useMessage,
 } from 'naive-ui';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { formatCommaViews, formatViews } from '../../utils/format-view-count';
 import { renderHTML } from '../../utils/render-html';
+import axios from 'axios';
 import { ref, h } from 'vue';
 import {
   ThumbsUp,
@@ -40,6 +41,7 @@ import CustomVideoPlayer from './CustomVideoPlayer.vue';
 import { useAuth } from '../../stores/AuthProvider';
 
 const message = useMessage();
+const route = useRoute();
 const router = useRouter();
 const { video, startTimeChapter } = defineProps(['video', 'startTimeChapter']);
 const emit = defineEmits(['time-update']);
@@ -107,20 +109,31 @@ const checkSubscribe = (channelId) => {
     ) > -1
   );
 };
+
+const getNextVideo = async () => {
+  if (route.query.list) {
+    const currentIndex = route.query.index ?? 1;
+    const playlistId = route.query.list;
+    const { data } = await axios.get(`/playlists/${playlistId} `);
+    const nextVideoUrl = data.relatedStreams[currentIndex].url;
+    return `${nextVideoUrl}&list=${playlistId}&index=${+currentIndex + 1}`;
+  }
+  const videos = video.relatedStreams.filter((v) => v.type === 'stream');
+  return videos[Math.floor(Math.random() * videos.length)].url;
+};
 </script>
 
 <template>
   <CustomVideoPlayer
     :audioStreams="video.audioStreams"
     :videoStreams="video.videoStreams"
-    :nextVideo="video.relatedStreams[0]"
+    :nextVideo="getNextVideo"
     :duration="video.duration"
     :thumbnail="video.thumbnailUrl"
     :onlyAudio="onlyAudio"
     :subtitles="video.subtitles"
     :startTimeChapter="startTimeChapter"
     :isLive="video.livestream"
-    :hls="video.hls"
     @time-update="getUpdateTime"
   />
   <n-h3 :style="{ margin: 0, fontSize: '19px', marginTop: '6px' }">
