@@ -57,7 +57,6 @@ const {
   onlyAudio,
   subtitles,
   startTimeChapter,
-  isLive,
 } = defineProps([
   'audioStreams',
   'videoStreams',
@@ -67,7 +66,6 @@ const {
   'onlyAudio',
   'subtitles',
   'startTimeChapter',
-  'isLive',
 ]);
 
 const emit = defineEmits(['time-update']);
@@ -76,22 +74,27 @@ const leftOptions = reactive({
   Play: {
     icon: markRaw(PlayFilledAlt),
     isShow: false,
+    key: 'k',
   },
   Pause: {
     icon: markRaw(PauseFilled),
     isShow: true,
+    key: 'k',
   },
   Next: {
     icon: markRaw(SkipForwardFilled),
     isShow: true,
+    key: 'n',
   },
   Mute: {
     icon: markRaw(VolumeUpFilled),
     isShow: localStorage.volume > 0,
+    key: 'm',
   },
   Unmute: {
     icon: markRaw(VolumeMuteFilled),
     isShow: !(localStorage.volume > 0),
+    key: 'm',
   },
 });
 
@@ -103,16 +106,22 @@ const rightOptions = reactive({
   Miniplayer: {
     icon: markRaw(BringToFront),
     isShow: document.pictureInPictureEnabled,
+    key: 'i',
   },
   'Full screen': {
     icon: markRaw(Maximize),
     isShow: true,
+    key: 'f',
   },
   'Exit full screen': {
     icon: markRaw(Minimize),
     isShow: false,
+    key: 'f',
   },
 });
+
+let videoProgressInterval = null;
+let mouseMoveTimeout = null;
 
 const route = useRoute();
 const router = useRouter();
@@ -122,7 +131,7 @@ const playedTime = ref(0);
 const volume = ref(localStorage.volume ? +localStorage.volume : 100);
 const autoNextVideo = ref(true);
 const timeoutPercent = ref(0);
-const videoProgressInterval = ref();
+
 const selectedQuality = ref(localStorage['resolution'] || '720p');
 const selectedSubtitle = ref('off');
 const subtitleCollection = ref();
@@ -273,7 +282,7 @@ const handleChangeVideoDuration = (time) => {
   isPlaying.value ? togglePlay('play') : togglePlay('pause');
   playerStatus.value = isPlaying.value ? 'play' : 'pause';
   timeoutPercent.value = 0;
-  clearInterval(videoProgressInterval.value);
+  clearInterval(videoProgressInterval);
   audioRef.value.currentTime = time;
 };
 
@@ -294,8 +303,8 @@ const handleChangeVolume = (selectedVolume) => {
 // Video ended
 const handleVideoEnded = () => {
   togglePlay('pause');
-  document.querySelector('#player-status').style.opacity = 1;
-  document.querySelector('#player-controls').style.opacity = 1;
+  document.querySelector('#player-status').classList.add('show-controls');
+  document.querySelector('#player-controls').classList.add('show-controls');
   if (document.pictureInPictureElement) {
     document.exitPictureInPicture();
   }
@@ -305,10 +314,10 @@ const handleVideoEnded = () => {
   }
   if (autoNextVideo.value) {
     playerStatus.value = 'next-video';
-    videoProgressInterval.value = setInterval(() => {
+    videoProgressInterval = setInterval(() => {
       timeoutPercent.value += 20;
       if (timeoutPercent.value > 100) {
-        router.push(nextVideo.url);
+        nextVideo();
         playerStatus.value = 'play';
       }
     }, 1000);
@@ -363,11 +372,6 @@ const handleSelectSubtitle = async (sub) => {
   subtitleCollection.value = xmlToSubtitle(await res.text());
 };
 
-const handleAutoPlay = () => {
-  isPlaying.value ? togglePlay('play') : togglePlay('pause');
-  playerStatus.value = isPlaying.value ? 'play' : 'pause';
-};
-
 const handleLoadingMetaData = () => {
   togglePlay('pause');
   playerStatus.value = 'loading';
@@ -377,6 +381,20 @@ const handleEventPip = (event) => {
   if (!document.pictureInPictureElement) return;
   togglePlay(event);
 };
+
+const mouseEvent = () => {
+  document.addEventListener('mousemove', () => {
+    document.body.style.cursor = 'default';
+    document.querySelector('#player-status')?.classList.remove('hide-controls');
+    clearTimeout(mouseMoveTimeout);
+    mouseMoveTimeout = setTimeout(() => {
+      document.body.style.cursor = 'none';
+      document.querySelector('#player-status')?.classList.add('hide-controls');
+    }, 3000);
+  });
+};
+
+const keyBinding = () => {};
 
 onMounted(() => {
   audioRef.value.volume = volume.value / 100;
@@ -389,10 +407,11 @@ onMounted(() => {
       }, 50);
     }
   });
+  mouseEvent();
 });
 
 onBeforeUnmount(() => {
-  clearInterval(videoProgressInterval.value);
+  clearInterval(videoProgressInterval);
   if (document.pictureInPictureElement) {
     document.exitPictureInPicture();
   }
@@ -401,8 +420,10 @@ onBeforeUnmount(() => {
 watch(route, () => {
   selectedSubtitle.value = 'off';
   timeoutPercent.value = 0;
-  videoProgressInterval.value = null;
+  videoProgressInterval = null;
   subtitleCollection.value = null;
+  document.querySelector('#player-status').classList.remove('show-controls');
+  document.querySelector('#player-controls').classList.remove('show-controls');
 });
 </script>
 
@@ -452,7 +473,8 @@ watch(route, () => {
         @ended="handleVideoEnded"
         @pause="handleEventPip('pause')"
         @play="handleEventPip('play')"
-        @canplaythrough="handleAutoPlay"
+        @waiting="handleLoadingMetaData"
+        @canplay="togglePlay('play')"
       />
     </template>
     <audio
@@ -540,7 +562,7 @@ watch(route, () => {
                     />
                   </n-button>
                 </template>
-                Previous
+                Previous (p)
               </n-tooltip>
             </template>
             <template v-for="option in Object.keys(leftOptions)">
@@ -555,7 +577,7 @@ watch(route, () => {
                       @click="handleControlsClick(option.toLocaleLowerCase())"
                     />
                   </template>
-                  {{ option }}
+                  {{ `${option} (${leftOptions[option]?.key})` }}
                 </n-tooltip>
               </template>
             </template>
@@ -590,14 +612,19 @@ watch(route, () => {
                 <n-icon :component="PauseFilled" color="#000" />
               </template>
             </n-switch>
-            <n-button
-              text
-              :focusable="false"
-              :text-color="isRepeat ? '#63e2b7' : '#fff'"
-              @click="isRepeat = !isRepeat"
-            >
-              <n-icon :component="RepeatOne" :size="20" />
-            </n-button>
+            <n-tooltip :show-arrow="false">
+              <template #trigger>
+                <n-button
+                  text
+                  :focusable="false"
+                  :text-color="isRepeat ? '#63e2b7' : '#fff'"
+                  @click="isRepeat = !isRepeat"
+                >
+                  <n-icon :component="RepeatOne" :size="20" />
+                </n-button>
+              </template>
+              Loop (l)
+            </n-tooltip>
             <!-- Right -->
             <template v-for="option in Object.keys(rightOptions)">
               <template v-if="rightOptions[option].isShow">
@@ -618,7 +645,11 @@ watch(route, () => {
                       />
                     </n-button>
                   </template>
-                  {{ option }}
+                  {{
+                    option === 'Settings'
+                      ? option
+                      : `${option} (${rightOptions[option].key})`
+                  }}
                 </n-tooltip>
               </template>
             </template>
@@ -878,7 +909,12 @@ video::-webkit-media-controls-enclosure {
   z-index: 999;
 }
 
-.hide-cursor {
-  cursor: 'none';
+.hide-controls:hover {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.show-controls {
+  opacity: 1;
 }
 </style>

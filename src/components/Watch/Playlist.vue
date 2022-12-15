@@ -9,6 +9,8 @@ import {
   NText,
   NEllipsis,
   NTag,
+  NSpin,
+  NButton,
 } from 'naive-ui';
 import { CaretRight } from '@vicons/carbon';
 import { ref, onMounted, watch } from 'vue';
@@ -25,6 +27,7 @@ const playlistDetail = ref();
 const videoHeight = ref();
 const currentVideoIndex = ref();
 const nextPageData = ref();
+const isLoading = ref(false);
 
 const handleSelectVideo = ({ index, url }) => {
   router.push(`${url}&list=${playlistId}&index=${index + 1}`);
@@ -36,25 +39,15 @@ const getPlaylistVideos = async () => {
     playlistDetail.value = data;
     nextPageData.value = data.nextpage;
     if (data.videos < 0) return;
-    while (nextPageData.value) {
-      const res = await getNextData({
-        id: playlistId,
-        type: 'playlists',
-        nextpage: data.nextpage,
-      });
-      playlistDetail.value.relatedStreams = [
-        ...playlistDetail.value.relatedStreams,
-        ...res.relatedStreams,
-      ];
-      nextPageData.value = res.nextpage;
-    }
   } catch (err) {
     console.error(err);
   }
 };
 
 const loadMoreVideos = async () => {
+  if (!nextPageData.value && isLoading.value) return;
   try {
+    isLoading.value = true;
     const res = await getNextData({
       id: playlistId,
       type: 'playlists',
@@ -67,6 +60,8 @@ const loadMoreVideos = async () => {
     nextPageData.value = res.nextpage;
   } catch (err) {
     console.error(err);
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -189,6 +184,28 @@ watch(route, ({ query }) => {
                   </n-ellipsis>
                 </n-text>
               </n-space>
+            </template>
+          </n-space>
+          <n-space
+            align="center"
+            justify="center"
+            :style="{ marginTop: '12px' }"
+          >
+            <template v-if="nextPageData">
+              <template v-if="isLoading">
+                <n-spin />
+              </template>
+              <template v-else>
+                <n-button
+                  round
+                  strong
+                  secondary
+                  type="success"
+                  @click="loadMoreVideos()"
+                >
+                  Load more
+                </n-button>
+              </template>
             </template>
           </n-space>
         </n-scrollbar>

@@ -133,7 +133,6 @@ const getNextVideo = async () => {
     :onlyAudio="onlyAudio"
     :subtitles="video.subtitles"
     :startTimeChapter="startTimeChapter"
-    :isLive="video.livestream"
     @time-update="getUpdateTime"
   />
   <n-h3 :style="{ margin: 0, fontSize: '19px', marginTop: '6px' }">

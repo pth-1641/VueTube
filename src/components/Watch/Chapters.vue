@@ -99,7 +99,9 @@ onMounted(() => {
                       bottom: '3px',
                       right: '3px',
                       width: 'max-content',
+                      cursor: 'pointer',
                     }"
+                    @click="emit('selected-chapter', { start: chapter.start })"
                   >
                     {{ convertTimer(chapter.start) }}
                   </n-tag>
