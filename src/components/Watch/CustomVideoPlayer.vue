@@ -88,12 +88,12 @@ const leftOptions = reactive({
   },
   Mute: {
     icon: markRaw(VolumeUpFilled),
-    isShow: localStorage.volume > 0,
+    isShow: !(localStorage.muted === 'true'),
     key: 'm',
   },
   Unmute: {
     icon: markRaw(VolumeMuteFilled),
-    isShow: !(localStorage.volume > 0),
+    isShow: localStorage.muted === 'true',
     key: 'm',
   },
 });
@@ -129,23 +129,22 @@ const videoRef = ref();
 const audioRef = ref();
 const playedTime = ref(0);
 const volume = ref(localStorage.volume ? +localStorage.volume : 100);
-const autoNextVideo = ref(true);
+const autoNextVideo = ref(localStorage.autoplay ?? true);
 const timeoutPercent = ref(0);
-
 const selectedQuality = ref(localStorage['resolution'] || '720p');
 const selectedSubtitle = ref('off');
 const subtitleCollection = ref();
 const subtitleContent = ref('');
 const playerStatus = ref('play');
 const isRepeat = ref(false);
-const isPlaying = ref(true);
+const isSeeking = ref(false);
 
 const videoUrl = (streams, quality) => {
   const sortedStreams = streams
     .filter((s) => s.format === 'WEBM' && s.videoOnly)
     .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
   const video =
-    sortedStreams.find((s) => s.quality === quality) ?? sortedStreams[0];
+    sortedStreams.find((s) => s.quality.includes(quality)) || sortedStreams[0];
   selectedQuality.value = video.quality;
   return video.url;
 };
@@ -165,10 +164,20 @@ const qualities = (streams) => {
   return removeDuplicate;
 };
 
+const closeSettings = () => {
+  document
+    .querySelector('#setting-controls')
+    .classList.remove('settings-active');
+  document
+    .querySelector('#player-controls')
+    .classList.remove('settings-active');
+};
+
 // Controls
 const handleControlsClick = async (type) => {
   switch (type) {
     case 'play':
+      // if (playerStatus.value === 'loading') return;
       togglePlay('play');
       break;
     case 'pause':
@@ -190,12 +199,14 @@ const handleControlsClick = async (type) => {
       openSettingOptions();
       break;
     case 'miniplayer':
-      videoRef.value.requestPictureInPicture();
+      togglePip();
       break;
     case 'full screen':
+      document.querySelector('body').requestFullscreen();
       toggleFullScreen('maximize');
       break;
     case 'exit full screen':
+      document.exitFullscreen();
       toggleFullScreen('minimize');
       break;
     default:
@@ -213,6 +224,7 @@ const togglePlay = (status) => {
 
 const toggleMute = (status) => {
   localStorage.muted = status === 'mute';
+  localStorage.volume = status === 'mute' ? 0 : audioRef.value.volume;
   audioRef.value.muted = status === 'mute';
   leftOptions['Mute'].isShow = status !== 'mute';
   leftOptions['Unmute'].isShow = status === 'mute';
@@ -225,15 +237,24 @@ const toggleFullScreen = (status) => {
   rightOptions['Exit full screen'].isShow = status === 'maximize';
   rightOptions['Miniplayer'].isShow = status !== 'maximize';
   if (status === 'maximize') {
-    document.querySelector('body').requestFullscreen();
+    if (document.pictureInPictureElement) {
+      document.exitPictureInPicture();
+    }
     document.querySelector('#player-wrapper').classList.add('full-screen');
     return;
   }
-  if (status === 'minimize') {
-    document.exitFullscreen();
-    document.querySelector('#player-wrapper').classList.remove('full-screen');
+  document.querySelector('#player-wrapper').classList.remove('full-screen');
+};
+
+const togglePip = () => {
+  if (
+    document.querySelector('#player-wrapper').classList.contains('full-screen')
+  ) {
     return;
   }
+  document.pictureInPictureElement
+    ? document.exitPictureInPicture()
+    : videoRef.value.requestPictureInPicture();
 };
 
 const openSettingOptions = () => {
@@ -246,6 +267,7 @@ const openSettingOptions = () => {
 };
 
 const previousVideo = async () => {
+  if (!route.query.list) return;
   const currentIndex = route.query.index;
   const playlistId = route.query.list;
   const { data } = await axios.get(`/playlists/${playlistId} `);
@@ -253,11 +275,53 @@ const previousVideo = async () => {
   return `${nextVideoUrl}&list=${playlistId}&index=${+currentIndex - 1}`;
 };
 
+// Select quality
+const handleSelectQuality = (quality) => {
+  selectedQuality.value = quality;
+  videoUrl(videoStreams, quality);
+  closeSettings();
+};
+
+// Volume
+const handleChangeVolume = (selectedVolume) => {
+  localStorage.volume = selectedVolume;
+  audioRef.value.volume = selectedVolume / 100;
+  if (selectedVolume <= 0) {
+    localStorage.muted = true;
+    leftOptions['Mute'].isShow = false;
+    leftOptions['Unmute'].isShow = true;
+    return;
+  }
+  audioRef.value.muted = false;
+  localStorage.muted = false;
+  leftOptions['Mute'].isShow = true;
+  leftOptions['Unmute'].isShow = false;
+};
+
+// Select video playback rate
+const handleSelectPlaybackRate = (playbackRate) => {
+  videoRef.value.playbackRate = playbackRate;
+  audioRef.value.playbackRate = playbackRate;
+  closeSettings();
+};
+
+// Select subtitle
+const handleSelectSubtitle = async (sub) => {
+  closeSettings();
+  selectedSubtitle.value = sub;
+  if (sub === 'off') {
+    subtitleCollection.value = null;
+    return;
+  }
+  const res = await fetch(sub.url);
+  subtitleCollection.value = xmlToSubtitle(await res.text());
+};
+
 // Timeline
 const handleTimeUpdate = () => {
   emit('time-update', { currentTime: Math.round(audioRef.value?.currentTime) });
   playedTime.value = Math.round(audioRef.value?.currentTime);
-  if (videoRef.value?.currentTime) {
+  if (videoRef.value) {
     if (
       Math.abs(videoRef.value.currentTime - audioRef.value.currentTime) > 0.1
     ) {
@@ -269,7 +333,6 @@ const handleTimeUpdate = () => {
       (s) =>
         s.startTime <= playedTime.value + 0.5 && s.endTime > playedTime.value
     );
-
     if (currentSub > -1) {
       subtitleContent.value = subtitleCollection.value[currentSub].text;
     } else {
@@ -279,49 +342,32 @@ const handleTimeUpdate = () => {
 };
 
 const handleChangeVideoDuration = (time) => {
-  isPlaying.value ? togglePlay('play') : togglePlay('pause');
-  playerStatus.value = isPlaying.value ? 'play' : 'pause';
   timeoutPercent.value = 0;
   clearInterval(videoProgressInterval);
   audioRef.value.currentTime = time;
 };
 
-// Volume
-const handleChangeVolume = (selectedVolume) => {
-  localStorage.volume = selectedVolume;
-  audioRef.value.volume = selectedVolume / 100;
-  if (selectedVolume <= 0) {
-    leftOptions['Mute'].isShow = false;
-    leftOptions['Unmute'].isShow = true;
-    return;
-  }
-  audioRef.value.muted = false;
-  leftOptions['Mute'].isShow = true;
-  leftOptions['Unmute'].isShow = false;
-};
-
 // Video ended
 const handleVideoEnded = () => {
+  if (isRepeat.value) {
+    togglePlay('play');
+    return;
+  }
   togglePlay('pause');
+  if (!autoNextVideo.value) return;
   document.querySelector('#player-status').classList.add('show-controls');
   document.querySelector('#player-controls').classList.add('show-controls');
   if (document.pictureInPictureElement) {
     document.exitPictureInPicture();
   }
-  if (isRepeat.value) {
-    togglePlay('play');
-    return;
-  }
-  if (autoNextVideo.value) {
-    playerStatus.value = 'next-video';
-    videoProgressInterval = setInterval(() => {
-      timeoutPercent.value += 20;
-      if (timeoutPercent.value > 100) {
-        nextVideo();
-        playerStatus.value = 'play';
-      }
-    }, 1000);
-  }
+  playerStatus.value = 'next-video';
+  videoProgressInterval = setInterval(async () => {
+    timeoutPercent.value += 20;
+    if (timeoutPercent.value > 100) {
+      router.push(await nextVideo());
+      playerStatus.value = 'play';
+    }
+  }, 1000);
 };
 
 // Click video
@@ -331,50 +377,15 @@ const handleClickVideo = () => {
   isVideoPlaying ? togglePlay('pause') : togglePlay('play');
 };
 
-// Select quality
-const handleSelectQuality = (quality) => {
-  selectedQuality.value = quality;
-  videoUrl(videoStreams, quality);
-  document
-    .querySelector('#setting-controls')
-    .classList.remove('settings-active');
-  document
-    .querySelector('#player-controls')
-    .classList.remove('settings-active');
-};
-
-// Select video playback rate
-const handleSelectPlaybackRate = (playbackRate) => {
-  videoRef.value.playbackRate = playbackRate;
-  audioRef.value.playbackRate = playbackRate;
-  document
-    .querySelector('#setting-controls')
-    .classList.remove('settings-active');
-  document
-    .querySelector('#player-controls')
-    .classList.remove('settings-active');
-};
-
-// Select subtitle
-const handleSelectSubtitle = async (sub) => {
-  document
-    .querySelector('#setting-controls')
-    .classList.remove('settings-active');
-  document
-    .querySelector('#player-controls')
-    .classList.remove('settings-active');
-  selectedSubtitle.value = sub;
-  if (sub === 'off') {
-    subtitleCollection.value = null;
-    return;
-  }
-  const res = await fetch(sub.url);
-  subtitleCollection.value = xmlToSubtitle(await res.text());
-};
-
 const handleLoadingMetaData = () => {
-  togglePlay('pause');
+  audioRef.value?.pause();
+  videoRef.value?.pause();
   playerStatus.value = 'loading';
+};
+
+const handlePlayBuffer = () => {
+  if (playerStatus.value === 'pause') return;
+  togglePlay('play');
 };
 
 const handleEventPip = (event) => {
@@ -394,7 +405,59 @@ const mouseEvent = () => {
   });
 };
 
-const keyBinding = () => {};
+const keyBinding = () => {
+  document.addEventListener('fullscreenchange', () => {
+    const isFullScreen = document.fullscreenElement !== null;
+    !isFullScreen ? toggleFullScreen('minimize') : toggleFullScreen('maximize');
+  });
+  window.addEventListener('keyup', async (e) => {
+    if (e.target.nodeName.toLowerCase() === 'input') return;
+    const key = e.key;
+    const numberKeys = !Number.isNaN(parseInt(key));
+    if (numberKeys) {
+      handleChangeVideoDuration((duration / 10) * key);
+      return;
+    }
+    if (key === 'k' || key === ' ') {
+      handleClickVideo();
+    }
+    if (key === 'm') {
+      const isMuted = audioRef.value?.muted;
+      isMuted ? toggleMute('unmute') : toggleMute('mute');
+    }
+    if (key === 'p') {
+      router.push(await previousVideo());
+    }
+    if (key === 'n') {
+      router.push(await nextVideo());
+    }
+    if (key === 'l') {
+      isRepeat.value = !isRepeat.value;
+    }
+    if (key === 'i') {
+      togglePip();
+    }
+    if (key === 'f') {
+      const isFullScreen = document.fullscreenElement !== null;
+      isFullScreen
+        ? document.exitFullscreen()
+        : document.querySelector('body').requestFullscreen();
+    }
+    if (key === 'ArrowRight') {
+      const bonusTime = parseInt(localStorage.seek ?? 5);
+      handleChangeVideoDuration(playedTime.value + bonusTime);
+    }
+    if (key === 'ArrowLeft') {
+      const bonusTime = parseInt(localStorage.seek ?? 5);
+      handleChangeVideoDuration(playedTime.value - bonusTime);
+    }
+  });
+};
+
+const handleAutoPlayNextVideo = (v) => {
+  autoNextVideo.value = v;
+  localStorage.autoplay = v;
+};
 
 onMounted(() => {
   audioRef.value.volume = volume.value / 100;
@@ -408,6 +471,7 @@ onMounted(() => {
     }
   });
   mouseEvent();
+  keyBinding();
 });
 
 onBeforeUnmount(() => {
@@ -415,9 +479,11 @@ onBeforeUnmount(() => {
   if (document.pictureInPictureElement) {
     document.exitPictureInPicture();
   }
+  clearTimeout(mouseMoveTimeout);
 });
 
 watch(route, () => {
+  clearInterval(videoProgressInterval);
   selectedSubtitle.value = 'off';
   timeoutPercent.value = 0;
   videoProgressInterval = null;
@@ -428,9 +494,6 @@ watch(route, () => {
 </script>
 
 <template>
-  <template v-if="audioRef">
-    {{ handleChangeVideoDuration(startTimeChapter) }}
-  </template>
   <n-text
     id="player-wrapper"
     tag="div"
@@ -467,22 +530,26 @@ watch(route, () => {
     <template v-else>
       <video
         ref="videoRef"
-        :style="{ height: '100%' }"
         :src="videoUrl(videoStreams, selectedQuality)"
         type="video/*"
+        :style="{ height: '100%' }"
         @ended="handleVideoEnded"
         @pause="handleEventPip('pause')"
         @play="handleEventPip('play')"
         @waiting="handleLoadingMetaData"
-        @canplay="togglePlay('play')"
+        @canplay="handlePlayBuffer"
       />
     </template>
     <audio
       ref="audioRef"
       :src="audioUrl(audioStreams)"
       type="audio/*"
-      @timeupdate="handleTimeUpdate"
+      :muted="isSeeking"
       @waiting="handleLoadingMetaData"
+      @timeupdate="handleTimeUpdate"
+      @seeking="isSeeking = true"
+      @seeked="isSeeking = false"
+      @canplay="handlePlayBuffer"
     />
     <n-text
       tag="div"
@@ -600,18 +667,23 @@ watch(route, () => {
           <n-text
             :style="{ display: 'flex', alignItems: 'center', gap: '20px' }"
           >
-            <n-switch
-              size="small"
-              v-model:value="autoNextVideo"
-              @update:value="(v) => (autoNextVideo = v)"
-            >
-              <template #checked-icon>
-                <n-icon :component="PlayFilledAlt" color="#000" />
+            <n-tooltip :show-arrow="false">
+              <template #trigger>
+                <n-switch
+                  size="small"
+                  v-model:value="autoNextVideo"
+                  @update:value="handleAutoPlayNextVideo"
+                >
+                  <template #checked-icon>
+                    <n-icon :component="PlayFilledAlt" color="#000" />
+                  </template>
+                  <template #unchecked-icon>
+                    <n-icon :component="PauseFilled" color="#000" />
+                  </template>
+                </n-switch>
               </template>
-              <template #unchecked-icon>
-                <n-icon :component="PauseFilled" color="#000" />
-              </template>
-            </n-switch>
+              Autoplay is {{ autoNextVideo ? 'on' : 'off' }}
+            </n-tooltip>
             <n-tooltip :show-arrow="false">
               <template #trigger>
                 <n-button
@@ -715,7 +787,10 @@ watch(route, () => {
                                 size="16"
                                 :style="{
                                   opacity:
-                                    quality.quality === selectedQuality ? 1 : 0,
+                                    parseInt(quality.quality) ===
+                                    parseInt(selectedQuality)
+                                      ? 1
+                                      : 0,
                                 }"
                               />
                               {{ quality.quality }}

@@ -47,22 +47,25 @@ const { video, startTimeChapter } = defineProps(['video', 'startTimeChapter']);
 const emit = defineEmits(['time-update']);
 const onlyAudio = ref(false);
 const authProvider = useAuth();
+const showModal = ref(false);
+const optionValue = ref('mp3');
+const downloadLink = ref();
+const downloadInfo = ref({});
 
-const mp3Options = video.audioStreams
-  ?.filter((audio) => !audio.format.includes('WEBM'))
-  .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
+const mp3Options = video.audioStreams.sort(
+  (a, b) => parseInt(b.quality) - parseInt(a.quality)
+);
 
 const mp4Options = video.videoStreams
-  ?.filter((audio) => !audio.format.includes('WEBM'))
+  ?.filter((video) => !video.videoOnly)
   .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
 
 const resetDefault = () => {
   downloadInfo.value = {};
   downloadLink.value = null;
+  optionValue.value = 'mp3';
 };
 
-const downloadLink = ref();
-const downloadInfo = ref({});
 const handleUpdateSelectedDetail = (value) => {
   const selectedType = optionValue.value === 'mp3' ? mp3Options : mp4Options;
   const index = selectedType.findIndex((option) => option.url === value);
@@ -70,14 +73,13 @@ const handleUpdateSelectedDetail = (value) => {
   downloadLink.value = value;
 };
 
-const showModal = ref(false);
-const optionValue = ref('mp3');
 const handleSelectDownloadOption = (e) => {
   optionValue.value = e.target.value;
-  resetDefault();
+  downloadInfo.value = {};
+  downloadLink.value = null;
 };
 
-const handleDownload = () => {
+const handleDownload = async () => {
   window.open(downloadLink.value);
   showModal.value = false;
   resetDefault();
@@ -124,17 +126,28 @@ const getNextVideo = async () => {
 </script>
 
 <template>
-  <CustomVideoPlayer
-    :audioStreams="video.audioStreams"
-    :videoStreams="video.videoStreams"
-    :nextVideo="getNextVideo"
-    :duration="video.duration"
-    :thumbnail="video.thumbnailUrl"
-    :onlyAudio="onlyAudio"
-    :subtitles="video.subtitles"
-    :startTimeChapter="startTimeChapter"
-    @time-update="getUpdateTime"
-  />
+  <template v-if="video.livestream">
+    <iframe
+      :style="{ width: '100%', aspectRatio: '16/9', borderRadius: '8px' }"
+      :src="`https://www.youtube-nocookie.com/embed/${route.query.v}?autoplay=1&amp;modestbranding=1`"
+      frameborder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen
+    />
+  </template>
+  <template v-else>
+    <CustomVideoPlayer
+      :audioStreams="video.audioStreams"
+      :videoStreams="video.videoStreams"
+      :nextVideo="getNextVideo"
+      :duration="video.duration"
+      :thumbnail="video.thumbnailUrl"
+      :onlyAudio="onlyAudio"
+      :subtitles="video.subtitles"
+      :startTimeChapter="startTimeChapter"
+      @time-update="getUpdateTime"
+    />
+  </template>
   <n-h3 :style="{ margin: 0, fontSize: '19px', marginTop: '6px' }">
     {{ video.title }}
   </n-h3>
@@ -229,32 +242,35 @@ const getNextVideo = async () => {
     :style="{ marginTop: '12px' }"
   >
     <n-text code :style="{ marginTop: '8px' }">
-      {{ formatCommaViews(video.views) }} views |
+      {{ formatCommaViews(video.views) }}
+      {{ video.livestream ? 'watching' : 'views' }} |
       {{ video.uploadDate?.split('-').reverse().join('-') }}
     </n-text>
-    <n-space align="center">
-      <n-switch
-        @update:value="onlyAudio = !onlyAudio"
-        @click="
-          message.success(`Audio is ${onlyAudio ? 'on' : 'off'}`, {
-            icon: () => h(NIcon, null, { default: () => h(Music) }),
-          })
-        "
-      >
-        <template #checked-icon>
-          <n-icon :component="VideoOffFilled" />
-        </template>
-        <template #unchecked-icon>
-          <n-icon :component="VideoFilled" />
-        </template>
-      </n-switch>
-      <n-button round @click="showModal = true">
-        <template #icon>
-          <n-icon :component="Download" />
-        </template>
-        Download
-      </n-button>
-    </n-space>
+    <template v-if="!video.livestream">
+      <n-space align="center">
+        <n-switch
+          @update:value="onlyAudio = !onlyAudio"
+          @click="
+            message.success(`Audio is ${onlyAudio ? 'on' : 'off'}`, {
+              icon: () => h(NIcon, null, { default: () => h(Music) }),
+            })
+          "
+        >
+          <template #checked-icon>
+            <n-icon :component="VideoOffFilled" />
+          </template>
+          <template #unchecked-icon>
+            <n-icon :component="VideoFilled" />
+          </template>
+        </n-switch>
+        <n-button round @click="showModal = true">
+          <template #icon>
+            <n-icon :component="Download" />
+          </template>
+          Download
+        </n-button>
+      </n-space>
+    </template>
   </n-space>
   <n-modal
     v-model:show="showModal"
@@ -314,31 +330,6 @@ const getNextVideo = async () => {
             <n-input :value="downloadInfo.codec ?? 'No data'" readonly />
           </n-form-item>
         </n-gi>
-        <template v-if="optionValue === 'mp4'">
-          <n-gi>
-            <n-form-item label="Sound">
-              <n-input
-                :value="downloadInfo.videoOnly ? 'No' : 'Yes'"
-                readonly
-              />
-            </n-form-item>
-          </n-gi>
-          <n-gi>
-            <n-form-item label="FPS">
-              <n-input :value="downloadInfo.fps ?? 'No data'" readonly />
-            </n-form-item>
-          </n-gi>
-          <n-gi>
-            <n-form-item label="Width">
-              <n-input :value="downloadInfo.width ?? '0'" readonly />
-            </n-form-item>
-          </n-gi>
-          <n-gi>
-            <n-form-item label="Height">
-              <n-input :value="downloadInfo.height ?? '0'" readonly />
-            </n-form-item>
-          </n-gi>
-        </template>
       </n-grid>
       <n-button
         type="primary"

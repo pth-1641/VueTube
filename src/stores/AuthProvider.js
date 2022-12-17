@@ -4,7 +4,6 @@ import { supabase } from '../supabase';
 const initialState = {
   user: null,
   subscribedChannels: [],
-  likedVideos: [],
 };
 
 export const useAuth = defineStore('auth-provider', {
@@ -22,9 +21,16 @@ export const useAuth = defineStore('auth-provider', {
       const { data } = await supabase.auth.getUser();
       return (this.user = data.user);
     },
-    async logOut() {
+    async signIn() {
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+      });
+    },
+    async signOut() {
       await supabase.auth.signOut();
-      return (this.user = null);
+      this.user = null;
+      this.subscribedChannels = [];
+      return null;
     },
     async subscribeChannel({ channelId, uid }) {
       return await supabase

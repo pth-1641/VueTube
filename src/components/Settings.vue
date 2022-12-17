@@ -9,7 +9,7 @@ import {
   NText,
   NIcon,
 } from 'naive-ui';
-import { ServerDns, Carbon4K, LocationFilled } from '@vicons/carbon';
+import { ServerDns, Carbon4K, LocationFilled, ViewNext } from '@vicons/carbon';
 import { onMounted, ref } from 'vue';
 import axios from 'axios';
 
@@ -18,6 +18,7 @@ const defaultServer = ref('Server');
 const countries = ref([]);
 const defaultCountry = ref(localStorage['countryCode'] || 'VN');
 const defaultResolution = ref(localStorage['resolution'] || '720p');
+const defaultSeekTime = ref(localStorage['seek'] || '5 seconds');
 
 const resolutions = [
   {
@@ -54,6 +55,33 @@ const resolutions = [
   },
 ];
 
+const seekTimes = [
+  {
+    label: '5 seconds',
+    value: '5',
+  },
+  {
+    label: '10 seconds',
+    value: '10',
+  },
+  {
+    label: '15 seconds',
+    value: '15',
+  },
+  {
+    label: '20 seconds',
+    value: '20',
+  },
+  {
+    label: '30 seconds',
+    value: '30',
+  },
+  {
+    label: '60 seconds',
+    value: '60',
+  },
+];
+
 onMounted(async () => {
   document.title = 'Settings | VueTube';
   const serverList = await axios.get(import.meta.env.VITE_LIST_SERVER);
@@ -73,6 +101,10 @@ const handleChangeResolution = (resolution) => {
   localStorage.resolution = resolution;
 };
 
+const handleChangeSeekTime = (seekTime) => {
+  localStorage.seek = seekTime;
+};
+
 const handleChangeCountry = (countryCode) => {
   localStorage.countryCode = countryCode;
 };
@@ -82,7 +114,7 @@ const handleChangeCountry = (countryCode) => {
   <n-layout :style="{ padding: '24px 0', minHeight: '100vh' }">
     <n-layout-content :style="{ maxWidth: '768px', margin: 'auto' }">
       <n-h1 :style="{ fontSize: '36px', textAlign: 'center' }">Settings</n-h1>
-      <n-space vertical>
+      <n-space vertical :size="24">
         <n-space align="center" justify="space-between">
           <n-space align="flex-start">
             <n-icon :component="ServerDns" size="24" />
@@ -120,6 +152,22 @@ const handleChangeCountry = (countryCode) => {
               minWidth: '220px',
             }"
             @update:value="handleChangeResolution"
+          />
+        </n-space>
+        <n-space align="center" justify="space-between">
+          <n-space align="flex-start">
+            <n-icon :component="ViewNext" size="24" />
+            <n-h4 :style="{ margin: 0 }">Seek</n-h4>
+          </n-space>
+          <n-select
+            v-model:value="defaultSeekTime"
+            placement="bottom"
+            :options="seekTimes"
+            :style="{
+              width: 'max-content',
+              minWidth: '220px',
+            }"
+            @update:value="handleChangeSeekTime"
           />
         </n-space>
         <n-space align="center" justify="space-between">

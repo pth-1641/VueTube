@@ -31,7 +31,7 @@ const fetchedVideos = ref([]);
 
 const nextTrendingData = async () => {
   const endOfPage =
-    window.scrollY + window.innerHeight >= document.body.offsetHeight;
+    window.scrollY + window.innerHeight >= document.body.offsetHeight - 200;
   if (!endOfPage || isLoading.value) return;
   try {
     isLoading.value = true;
@@ -52,6 +52,7 @@ const nextTrendingData = async () => {
         [...videos.value, ...removeShorts].map((v) => [v['url'], v])
       ).values(),
     ];
+    console.log(removeDuplicateVideos);
     videos.value = removeDuplicateVideos;
   } catch (err) {
     console.error(err);

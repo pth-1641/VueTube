@@ -42,8 +42,8 @@ const getComments = async (id) => {
 };
 
 const loadMoreComments = async () => {
-  const rect = endComments.value.getBoundingClientRect();
-  const isEnd = rect.bottom <= document.documentElement.clientHeight;
+  const rect = endComments.value?.getBoundingClientRect();
+  const isEnd = rect?.bottom <= document.documentElement.clientHeight;
   if (!isEnd || !nextpageData.value) return;
   if (isLoading.value) return;
   try {
@@ -82,7 +82,7 @@ watch(route, ({ query }) => {
       Comments are turned off.
     </n-space>
   </template>
-  <template v-else>
+  <template v-else-if="comments.length">
     <n-h4 prefix="bar" :style="{ fontSize: '18px' }"> Comments </n-h4>
     <n-space
       v-for="comment in comments"
@@ -180,7 +180,6 @@ watch(route, ({ query }) => {
         <n-spin />
       </n-space>
     </template>
-
     <div ref="endComments" />
   </template>
 </template>

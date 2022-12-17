@@ -69,13 +69,11 @@ const handleQuerySuggests = (query) => {
 };
 
 const handleSignInWithGoogle = async () => {
-  await supabase.auth.signInWithOAuth({
-    provider: 'google',
-  });
+  await authProvider.signIn();
 };
 
 const handleSignOut = async () => {
-  await authProvider.logOut();
+  user.value = await authProvider.signOut();
 };
 
 const handleRedirectSearch = (suggest) => {
