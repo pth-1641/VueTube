@@ -8,6 +8,7 @@ import {
   NButton,
   NSpin,
   NSpace,
+  NImage,
 } from 'naive-ui';
 import { Playlist } from '@vicons/carbon';
 import axios from 'axios';
@@ -94,7 +95,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', getNextPlaylists));
               backgroundColor: '#333',
             }"
           >
-            <img :src="playlist.thumbnail" :style="{ width: '100%' }" />
+            <n-image :src="playlist.thumbnail" :style="{ height: '100%' }" />
             <n-text
               tag="div"
               :style="{

@@ -11,6 +11,7 @@ import {
   NTag,
   NSpin,
   NButton,
+  NImage
 } from 'naive-ui';
 import { CaretRight } from '@vicons/carbon';
 import { ref, onMounted, watch } from 'vue';
@@ -160,7 +161,7 @@ watch(route, ({ query }) => {
                     backgroundColor: '#333',
                   }"
                 >
-                  <img
+                  <n-image
                     :src="video.thumbnail"
                     :style="{
                       height: '100%',

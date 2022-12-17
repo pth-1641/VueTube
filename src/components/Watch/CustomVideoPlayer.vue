@@ -16,6 +16,7 @@ import {
   NScrollbar,
   NSpin,
   NButton,
+  NImage
 } from 'naive-ui';
 import {
   PlayFilledAlt,
@@ -525,7 +526,7 @@ watch(route, () => {
       </n-tag>
     </template>
     <template v-if="onlyAudio">
-      <img :src="thumbnail" :style="{ height: '100%' }" />
+      <n-image :src="thumbnail" :style="{ height: '100%' }" />
     </template>
     <template v-else>
       <video

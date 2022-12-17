@@ -1,5 +1,5 @@
 <script setup>
-import { NText, NEllipsis, NGrid, NGi, NTag, NSpin, NSpace } from 'naive-ui';
+import { NText, NEllipsis, NGrid, NGi, NTag, NSpin, NSpace, NImage } from 'naive-ui';
 import { useRouter, useRoute } from 'vue-router';
 import { ref, watch } from 'vue';
 import { formatViews } from '../../utils/format-view-count';
@@ -85,7 +85,7 @@ watch(
             position: 'relative',
           }"
         >
-          <img
+          <n-image
             :src="video.thumbnail"
             :style="{ height: '100%', objectFit: 'cover' }"
           />

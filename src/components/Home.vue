@@ -52,7 +52,6 @@ const nextTrendingData = async () => {
         [...videos.value, ...removeShorts].map((v) => [v['url'], v])
       ).values(),
     ];
-    console.log(removeDuplicateVideos);
     videos.value = removeDuplicateVideos;
   } catch (err) {
     console.error(err);

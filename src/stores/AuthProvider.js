@@ -33,6 +33,10 @@ export const useAuth = defineStore('auth-provider', {
       return null;
     },
     async subscribeChannel({ channelId, uid }) {
+      if (!this.user) {
+        await this.signIn();
+        return;
+      }
       return await supabase
         .from('channels')
         .insert({ channel_id: channelId, user_id: uid });

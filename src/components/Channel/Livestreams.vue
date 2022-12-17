@@ -8,6 +8,7 @@ import {
   NSpin,
   NSpace,
   NIcon,
+  NImage,
 } from 'naive-ui';
 import { WeatherStation } from '@vicons/carbon';
 import axios from 'axios';
@@ -87,7 +88,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', getNextLivestreams));
               position: 'relative',
             }"
           >
-            <img
+            <n-image
               :src="live.thumbnail"
               :style="{ height: '100%', objectFit: 'cover' }"
             />

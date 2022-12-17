@@ -7,7 +7,6 @@ import {
   NSpace,
   NModal,
   NText,
-  NCarousel,
   NIcon,
 } from 'naive-ui';
 import {
@@ -109,12 +108,12 @@ onBeforeUnmount(() => window.removeEventListener('scroll', getNextShortVideos));
         <n-text
           tag="div"
           :style="{
-            aspectRatio: '9/16',
             borderRadius: '8px',
             overflow: 'hidden',
             backgroundColor: '#333',
             display: 'flex',
             alignItems: 'center',
+            aspectRatio: '9/16',
           }"
         >
           <img :src="short.thumbnail" :style="{ width: '100%' }" />

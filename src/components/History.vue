@@ -16,6 +16,7 @@ import {
   NButton,
   NModal,
   NForm,
+  NH1,
 } from 'naive-ui';
 import {
   CheckmarkFilled,
@@ -119,6 +120,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', nextHistoryItems));
           <n-text type="error" strong>This can't be restored</n-text>
         </n-text>
       </n-modal>
+      <n-h1 :style="{ fontSize: '42px', textAlign: 'center' }">History</n-h1>
       <n-space
         align="center"
         justify="space-between"

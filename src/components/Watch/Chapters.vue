@@ -9,6 +9,7 @@ import {
   NText,
   NEllipsis,
   NTag,
+  NImage,
 } from 'naive-ui';
 import { CaretRight } from '@vicons/carbon';
 import { convertTimer } from '../../utils/convert-timer';
@@ -74,10 +75,10 @@ onMounted(() => {
                     backgroundColor: '#333',
                   }"
                 >
-                  <img
+                  <n-image
                     :src="chapter.image"
                     :style="{
-                      width: '100%',
+                      height: '100%',
                     }"
                   />
                 </n-text>
